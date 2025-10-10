@@ -7,9 +7,20 @@ ser = Serial(
     baudrate=115200,
 )
 
-ser.isOpen()
+while not ser.isOpen():
+    time.sleep(1)
+
+time.sleep(3) # Give the printer a chance to get ready to receive messages
 
 print('Enter your commands below.\r\nInsert "exit" to leave the application.')
+XMax = 1000
+ZMax = 500
+setMaximumSpeeds = f"M203 X{XMax} Z{ZMax}\n"
+ser.write(setMaximumSpeeds.encode())
+
+goHome = "G28\n"
+ser.write(goHome.encode())
+print("Please wait till home is set")
 
 myinput=1
 while 1 :
@@ -22,7 +33,7 @@ while 1 :
         exit()
     else:
         # send the character to the device
-        # (note that I happend a \r\n carriage return and line feed to the characters - this is requested by my device)
+        # (note that I happend a \n carriage return and line feed to the characters - this is requested by my device)
         myinput = myinput + "\n"
         ser.write(myinput.encode())
         out = b''
@@ -37,3 +48,5 @@ while 1 :
 
 # G00 X20.00 Y0.00 Z200.00 This means to go to these coordinates as fast as possible
 # G01 X20.00 Y0.00 Z200.00 F100 This means to go to these coordinates at the speed designated
+# M203 X500.00 Y500.00 Z5.00 E25.00 set maximum feedrates for each thing. 
+# M114 might be get the current position of the gantry. 
