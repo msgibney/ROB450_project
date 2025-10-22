@@ -1,18 +1,25 @@
 import time
 from serial import Serial
+from gamepad import Gamepad
+import logging
 
+logger = logging.getLogger(__name__)
+
+logger.info("Setting up connections")
 # configure the serial connections (the parameters differs on the device you are connecting to)
 ser = Serial(
     port='/dev/ttyUSB0',
     baudrate=115200,
 )
 
+gamepad = Gamepad()
+
 while not ser.isOpen():
     time.sleep(1)
 
 time.sleep(3) # Give the printer a chance to get ready to receive messages
 
-print('Enter your commands below.\r\nInsert "exit" to leave the application.')
+logger.info('Enter your commands below.\r\nInsert "exit" to leave the application.')
 XMax = 1000
 ZMax = 500
 setMaximumSpeeds = f"M203 X{XMax} Z{ZMax}\n"
@@ -20,7 +27,7 @@ ser.write(setMaximumSpeeds.encode())
 
 goHome = "G28\n"
 ser.write(goHome.encode())
-print("Please wait till home is set")
+logger.info("Please wait till home is set")
 
 myinput=1
 while 1 :
@@ -43,7 +50,7 @@ while 1 :
             out += ser.read(1)
             
         if out != '':
-            print(">>" + out.decode())
+            logger.debug(">>" + out.decode())
 
 
 # G00 X20.00 Y0.00 Z200.00 This means to go to these coordinates as fast as possible
