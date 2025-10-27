@@ -1,9 +1,17 @@
 import time
 from serial import Serial
-from gamepad import Gamepad
 import logging
+import sys
 
+USING_GAMEPAD = True
 logger = logging.getLogger(__name__)
+
+logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 logger.info("Setting up connections")
 # configure the serial connections (the parameters differs on the device you are connecting to)
@@ -12,14 +20,47 @@ ser = Serial(
     baudrate=115200,
 )
 
-gamepad = Gamepad()
+def clearSerial():
+    while ser.inWaiting() > 0:
+        out = ser.readline()
+
+def waitForResponse(response):
+    getLoc = "M114\n"
+    ser.write(getLoc.encode())
+    logger.debug(f"Waiting for: {response}")
+
+    gotResponse = False
+
+    while not gotResponse:
+        # out = b''
+        while ser.inWaiting() > 0:
+            out = ser.readline()
+            if out != '':
+                logger.debug(out.decode())
+                # break
+                if response in out.decode():
+                    gotResponse = True
+                    break
+        # time.sleep(0.001)
+    
+
+def sendGCode(gcode):
+    gcode = gcode + "\n"
+    logger.debug(f"Sending Command: {gcode}")
+    ser.write(gcode.encode())
+
+if USING_GAMEPAD:
+    from gamepad import Gamepad
+    gamepad = Gamepad()
 
 while not ser.isOpen():
     time.sleep(1)
 
 time.sleep(3) # Give the printer a chance to get ready to receive messages
 
-logger.info('Enter your commands below.\r\nInsert "exit" to leave the application.')
+clearSerial()
+
+logger.info('Enter your commands below.')
 XMax = 1000
 ZMax = 500
 setMaximumSpeeds = f"M203 X{XMax} Z{ZMax}\n"
@@ -29,28 +70,35 @@ goHome = "G28\n"
 ser.write(goHome.encode())
 logger.info("Please wait till home is set")
 
+waitForResponse("X:0.00 Y:0.00 Z:0.00")
+logger.info("Home is set")
+
 myinput=1
+xPos = 0
+yPos = 0
 while 1 :
     # get keyboard input
-    myinput = input(">> ")
-        # Python 3 users
-        # input = input(">> ")
-    if myinput == 'exit':
-        ser.close()
-        exit()
+    if USING_GAMEPAD:
+        gamepad.read_gamepad()
+        xSpeed = gamepad.get_analogL_x()
+        ySpeed = gamepad.get_analogL_y()
+        if xSpeed == 0 and ySpeed == 0:
+            continue
+        xPos += xSpeed * 4
+        yPos += ySpeed * 1
+        
+        if xPos < 0:
+            xPos = 0
+        
+        if yPos < 0:
+            yPos = 0
+
+        gcode = f"G00 X{xPos} Z{yPos}"
     else:
-        # send the character to the device
-        # (note that I happend a \n carriage return and line feed to the characters - this is requested by my device)
-        myinput = myinput + "\n"
-        ser.write(myinput.encode())
-        out = b''
-        # let's wait one second before reading output (let's give device time to answer)
-        time.sleep(1)
-        while ser.inWaiting() > 0:
-            out += ser.read(1)
-            
-        if out != '':
-            logger.debug(">>" + out.decode())
+        gcode = input(">> ")
+
+    sendGCode(gcode)
+    waitForResponse("Count")
 
 
 # G00 X20.00 Y0.00 Z200.00 This means to go to these coordinates as fast as possible

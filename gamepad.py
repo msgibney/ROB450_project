@@ -57,6 +57,11 @@ class Gamepad(object):
             return None
        except usb.core.USBTimeoutError as e:
            return None
+    
+    def _applyJoystickTransformations(self, state):
+        if state < 138 and state > 120:
+            return 0
+        return (state - 128) / 128
 
     def read_gamepad(self, timeout=200):
         state = self._getState(timeout=timeout)
@@ -66,16 +71,16 @@ class Gamepad(object):
             self._state = state
 
     def get_analogR_x(self):
-        return self._state[2]
+        return -1 * self._applyJoystickTransformations(self._state[2])
 
     def get_analogR_y(self):
-        return self._state[3]
+        return -1 * self._applyJoystickTransformations(self._state[3])
 
     def get_analogL_x(self):
-        return self._state[0]
+        return -1 * self._applyJoystickTransformations(self._state[0])
 
     def get_analogL_y(self):
-        return self._state[1]
+        return -1 * self._applyJoystickTransformations(self._state[1])
 
     def changed(self):
         return self.changed
