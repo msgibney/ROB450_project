@@ -5,6 +5,7 @@ import logging
 import util
 import threading
 import sys
+import time
 
 grid_size_x = 400
 grid_size_y = 200
@@ -58,9 +59,11 @@ print(bots)
 
 goal_grid = bots[2]
 
-print(goal_grid)
+start_grid = (20, 30)
 
-start_grid = [20, 30]
+goal_grid = (int(goal_grid[0]), int(goal_grid[1]))
+
+print(goal_grid)
 
 path = astar.find_path(start_grid, goal_grid)
 

@@ -36,7 +36,7 @@ def get_walls(frame):
     img = Image.fromarray(blue_mask)
     resized_img = img.resize((400, 200), Image.NEAREST)
 
-    return np.array(resized_img)
+    return np.array(resized_img, dtype=np.int8)
 
 
 def locate_bots():
@@ -62,10 +62,10 @@ def locate_bots():
     while True:
         ret, frame = cam.read()
 
-        startY = 30
-        endY = 970
-        startX = 90
-        endX = 1800
+        startY = 80
+        endY = 900
+        startX = 150
+        endX = 1700
         
         frame = frame[startY:endY, startX:endX]
         if first_loop:
@@ -88,14 +88,14 @@ def locate_bots():
             else:
                 cX, cY = 0, 0
                 continue
-            coordinates.append([cX,cY])
+            coordinates.append([cX*400/1550,cY*200/820])
+            
             cv2.circle(frame, (cX, cY), 5, (255, 255, 255), -1)
             cv2.putText(frame, "centroid", (cX - 25, cY - 25),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
         coordinate_lock.acquire()
         global COORDINATES
         COORDINATES = coordinates
         coordinate_lock.release()
-        print("set new coordinates")
         # cv2.imshow("video", thresh)
         # cv2.imshow("video2", frame)
         # Press 'q' to exit the loop
