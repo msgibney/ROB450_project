@@ -1,5 +1,7 @@
 import cv2
 import imutils
+import numpy as np
+from PIL import Image
 
 print("initializing camera")
 cam = cv2.VideoCapture(0, cv2.CAP_ANY)
@@ -27,9 +29,16 @@ print("Finished Initializing")
 while True:
     ret, frame = cam.read()
 
+    startY = 30
+    endY = 970
+    startX = 90
+    endX = 1800
+    
+    frame = frame[startY:endY, startX:endX]
+
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    # blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    thresh = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY)[1]
+
+    thresh = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY_INV)[1]
     cnts, hierarchy = cv2.findContours(thresh.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     #cnts = cnts[0] if imutils.is_cv2() else cnts[1]
 
@@ -42,6 +51,7 @@ while True:
             cY = int(M["m01"] / M["m00"])
         else:
             cX, cY = 0, 0
+            continue
         #cv2.circle(image, (cX, cY), 1, (255, 255, 255), -1)
         coordinates.append([cX,cY])
         cv2.circle(frame, (cX, cY), 5, (255, 255, 255), -1)
