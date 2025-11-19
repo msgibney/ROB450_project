@@ -2,6 +2,7 @@ import time
 from serial import Serial
 import logging
 import sys
+from gantry import Gantry
 
 USING_GAMEPAD = True
 logger = logging.getLogger(__name__)
@@ -53,6 +54,42 @@ if USING_GAMEPAD:
     from gamepad import Gamepad
     gamepad = Gamepad()
 
+gantry = Gantry()
+
+ser = Serial(
+    port='/dev/ttyUSB0',
+    baudrate=115200,
+)
+
+def clearSerial():
+    while ser.inWaiting() > 0:
+        out = ser.readline()
+
+def waitForResponse(response):
+    getLoc = "M114\n"
+    ser.write(getLoc.encode())
+    logger.debug(f"Waiting for: {response}")
+
+    gotResponse = False
+
+    while not gotResponse:
+        # out = b''
+        while ser.inWaiting() > 0:
+            out = ser.readline()
+            if out != '':
+                logger.debug(out.decode())
+                # break
+                if response in out.decode():
+                    gotResponse = True
+                    break
+        # time.sleep(0.001)
+    
+
+def sendGCode(gcode):
+    gcode = gcode + "\n"
+    logger.debug(f"Sending Command: {gcode}")
+    ser.write(gcode.encode())
+
 while not ser.isOpen():
     time.sleep(1)
 
@@ -94,9 +131,12 @@ while 1 :
             yPos = 0
 
         gcode = f"G00 X{xPos} Z{yPos}"
+        # gantry.go_to_position(xPos, yPos)
     else:
         gcode = input(">> ")
 
+        # gantry.sendGCode(gcode)
+        # gantry.waitForResponse()
     sendGCode(gcode)
     waitForResponse("Count")
 

@@ -9,6 +9,10 @@ class Gantry:
             baudrate=115200,
         )
         self.logger = get_logger()
+        while not self.ser.isOpen():
+            time.sleep(1)
+
+        time.sleep(3) # Give the printer a chance to get ready to receive messages
         self.clearSerial()
 
         self.logger.info('Initializing gantry system.')
@@ -21,7 +25,7 @@ class Gantry:
         self.ser.write(goHome.encode())
         self.logger.info("Please wait till home is set")
 
-        self.waitForResponse("X:0.00 Y:0.00 Z:0.00")
+        self.waitForResponse()
         self.logger.info("Home is set")
 
         self.current_pos = (0, 0)
@@ -40,9 +44,9 @@ class Gantry:
             if out != '':
                 self.logger.debug(out.decode())
                 if "Count" in out.decode():
-                    position = out.decode.split(' ')[1:]
+                    # position = out.decode.split(' ')[1:]
                     # Get the first and third positions since x and z are what we care about
-                    self.current_pos = (int(position[0][1:]), int(position[2][1:]))
+                    # self.current_pos = (int(position[0][1:]), int(position[2][1:]))
                     break
         
 

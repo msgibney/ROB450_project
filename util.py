@@ -23,7 +23,7 @@ def get_logger():
     return logger
 
 def get_finished_walls():
-    if not WALLS:
+    if len(WALLS) == 0:
         return None
     return WALLS
 
@@ -36,7 +36,8 @@ def get_walls(frame):
     img = Image.fromarray(blue_mask)
     resized_img = img.resize((400, 200), Image.NEAREST)
 
-    return resized_img
+    return np.array(resized_img)
+
 
 def locate_bots():
     logger.info("initializing camera")
@@ -56,7 +57,7 @@ def locate_bots():
     # out = cv2.VideoWriter('output.mp4', fourcc, 30.0, (frame_width, frame_height))
 
     logger.info("Finished Initializing")
-    firstLoop = True
+    first_loop = True
     # for i in range(300):
     while True:
         ret, frame = cam.read()
@@ -67,8 +68,10 @@ def locate_bots():
         endX = 1800
         
         frame = frame[startY:endY, startX:endX]
-        if firstLoop:
+        if first_loop:
+            global WALLS
             WALLS = get_walls(frame)
+            first_loop = False
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -89,10 +92,12 @@ def locate_bots():
             cv2.circle(frame, (cX, cY), 5, (255, 255, 255), -1)
             cv2.putText(frame, "centroid", (cX - 25, cY - 25),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
         coordinate_lock.acquire()
+        global COORDINATES
         COORDINATES = coordinates
         coordinate_lock.release()
-        cv2.imshow("video", thresh)
-        cv2.imshow("video2", frame)
+        print("set new coordinates")
+        # cv2.imshow("video", thresh)
+        # cv2.imshow("video2", frame)
         # Press 'q' to exit the loop
         if cv2.waitKey(1) == ord('q'):
             break
