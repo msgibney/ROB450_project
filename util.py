@@ -8,9 +8,9 @@ import threading
 
 logger = logging.getLogger(__name__)
 
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.DEBUG)
+handler.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -18,6 +18,13 @@ logger.addHandler(handler)
 COORDINATES = []
 coordinate_lock = threading.Lock()
 WALLS = []
+
+startY = 80
+endY = 1000
+startX = 100
+endX = 1800
+x_len = endX - startX
+y_len = endY - startY
 
 def get_logger():
     return logger
@@ -38,10 +45,12 @@ def get_walls(frame):
 
     return np.array(resized_img, dtype=np.int8)
 
-
+def camera_to_grid(cX, cY):
+    return [(x_len-cX)*400/(x_len),(y_len - cY)*200/(y_len)]
+    
 def locate_bots():
     logger.info("initializing camera")
-    cam = cv2.VideoCapture(0, cv2.CAP_ANY)
+    cam = cv2.VideoCapture(4, cv2.CAP_ANY)
 
     # Get the default frame width and height
     frame_width = int(cam.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -53,7 +62,7 @@ def locate_bots():
     cam.set(cv2.CAP_PROP_FRAME_HEIGHT, frame_height)
 
     # Define the codec and create VideoWriter object
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    # fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     # out = cv2.VideoWriter('output.mp4', fourcc, 30.0, (frame_width, frame_height))
 
     logger.info("Finished Initializing")
@@ -62,10 +71,8 @@ def locate_bots():
     while True:
         ret, frame = cam.read()
 
-        startY = 80
-        endY = 900
-        startX = 150
-        endX = 1700
+        if frame is None:
+            continue
         
         frame = frame[startY:endY, startX:endX]
         if first_loop:
@@ -75,8 +82,8 @@ def locate_bots():
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        thresh = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY_INV)[1]
-        cnts, hierarchy = cv2.findContours(thresh.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 23, 73)
+        cnts, hierarchy = cv2.findContours(thresh.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
         coordinates = []
         for c in cnts:
@@ -88,14 +95,17 @@ def locate_bots():
             else:
                 cX, cY = 0, 0
                 continue
-            coordinates.append([cX*400/1550,cY*200/820])
+            coordinates.append(camera_to_grid(cX, cY))
+            str_coor = [f"{num:.2f}" for num in coordinates[-1]]
+            cv2.putText(frame, f"centroid: {str_coor}", (cX - 25, cY - 25),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
             
-            cv2.circle(frame, (cX, cY), 5, (255, 255, 255), -1)
-            cv2.putText(frame, "centroid", (cX - 25, cY - 25),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
         coordinate_lock.acquire()
         global COORDINATES
         COORDINATES = coordinates
         coordinate_lock.release()
+        cv2.drawContours(frame, cnts, -1, (0,0,255), 3)
+        cv2.imshow("video2", cv2.resize(frame, (1536, 864)))
         # cv2.imshow("video", thresh)
         # cv2.imshow("video2", frame)
         # Press 'q' to exit the loop

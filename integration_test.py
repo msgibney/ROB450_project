@@ -6,120 +6,86 @@ import util
 import threading
 import sys
 import time
+import gantry
 
 grid_size_x = 400
 grid_size_y = 200
+logger = util.get_logger()
 
-def grid_to_world(row, col, grid_size_x = grid_size_x, grid_size_y = grid_size_y, world_size_x=0.46, world_size_y = .26):
-    cell_size_x = world_size_x / grid_size_x
-    cell_size_y = world_size_y / grid_size_y
-    x = ((col + 0.5) * cell_size_x)*1000
-    y = ((row + 0.5) * cell_size_y)*1000
+
+def grid_to_world(
+    row,
+    col,
+    grid_size_x=grid_size_x,
+    grid_size_y=grid_size_y,
+    world_size_x=0.46,
+    world_size_y=0.26,
+):
+    # cell_size_x = world_size_x / grid_size_x
+    # cell_size_y = world_size_y / grid_size_y
+    # x = ((col + 0.5) * cell_size_x) * 1000
+    # y = ((row + 0.5) * cell_size_y) * 1000
+    x = col 
+    y = row
+    y += 30
+    x += 25
     return (x, y)
 
 
+# def world_to_gantry(point):
+#     return [point[0] *, ]
+
+
 camera_thread = threading.Thread(target=util.locate_bots)
+# camera_thread.daemon = True
 camera_thread.start()
+done = False
 
-def exit_cleanup():
-    try:
-        while True:
-            pass
-    except KeyboardInterrupt:
-        camera_thread.join()
-        exit(0)
+my_gantry = gantry.Gantry()
 
-ctrl_c_polling = threading.Thread(target=exit_cleanup)
-ctrl_c_polling.start()
-
-while (util.get_finished_walls() is None):
+while util.get_finished_walls() is None:
     # print(util.get_finished_walls())
     pass
 grid = util.get_finished_walls()
-print(grid)
-
 
 grid[0, :] = 1
 grid[-1, :] = 1
 grid[:, 0] = 1
 grid[:, -1] = 1
 
-ser = Serial(
-    port='/dev/ttyUSB0',
-    baudrate=115200,
-)
+try:
+    astar = plan.AStar(grid)
 
-astar = plan.AStar(grid)
+    while util.get_coordinates() == []:
+        pass
 
-while util.get_coordinates() == []:
-    pass
+    bots = util.get_coordinates()
+    logger.info(f"Bots: {bots}")
 
-bots = util.get_coordinates()
-print(bots)
+    goal_grid = bots[2]
 
-goal_grid = bots[2]
+    start_grid = (20, 30)
 
-start_grid = (20, 30)
+    goal_grid = (int(goal_grid[1]), int(goal_grid[0]))
 
-goal_grid = (int(goal_grid[0]), int(goal_grid[1]))
+    logger.info(f"Goal: {goal_grid}")
 
-print(goal_grid)
+    path = astar.find_path(start_grid, goal_grid)
 
-path = astar.find_path(start_grid, goal_grid)
+    logger.debug(f"Path: {path}")
 
-def sendGCode(gcode):
-    gcode = gcode + "\n"
-    # logger.debug(f"Sending Command: {gcode}")
-    ser.write(gcode.encode())
-    
-def clearSerial():
-    while ser.inWaiting() > 0:
-        out = ser.readline()
+    for waypoint in path:
+        point = grid_to_world(waypoint[1], waypoint[0])
 
-def waitForResponse(response):
-    getLoc = "M114\n"
-    ser.write(getLoc.encode())
-    # logger.debug(f"Waiting for: {response}")
+        my_gantry.go_to_position(point[0], point[1])
 
-    gotResponse = False
-
-    while not gotResponse:
-        # out = b''
-        while ser.inWaiting() > 0:
-            out = ser.readline()
-            if out != '':
-                # logger.debug(out.decode())
-                # break
-                if response in out.decode():
-                    gotResponse = True
-                    break
-        # time.sleep(0.001)
-while not ser.isOpen():
-    time.sleep(1)
-
-time.sleep(3) # Give the printer a chance to get ready to receive messages
-
-clearSerial()
-
-# logger.info('Enter your commands below.')
-XMax = 1000
-ZMax = 500
-setMaximumSpeeds = f"M203 X{XMax} Z{ZMax}\n"
-ser.write(setMaximumSpeeds.encode())
-
-goHome = "G28\n"
-ser.write(goHome.encode())
-# logger.info("Please wait till home is set")
-
-waitForResponse("X:0.00 Y:0.00 Z:0.00")
-# logger.info("Home is set")
-
-    
-for waypoint in path:
-    point = grid_to_world(waypoint[1], waypoint[0])
-    
-    print(point)
-    
-    gcode = f"G00 X{point[1]} Z{point[0]}"
-    sendGCode(gcode)
-    waitForResponse("Count")
+    done = True
+except Exception as e:
+    done = True
+    logger.info(f"Bad things happened: {e}")
+except KeyboardInterrupt:
+    logger.info(f"Cancelling Operations")
+    my_gantry.zero()
+    done = True
+logger.info(f"Goal: {goal_grid}")
+logger.info("Finished")

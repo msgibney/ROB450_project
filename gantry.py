@@ -21,38 +21,54 @@ class Gantry:
         setMaximumSpeeds = f"M203 X{XMax} Z{ZMax}\n"
         self.ser.write(setMaximumSpeeds.encode())
 
-        goHome = "G28\n"
-        self.ser.write(goHome.encode())
-        self.logger.info("Please wait till home is set")
-
-        self.waitForResponse()
-        self.logger.info("Home is set")
+        self.zero()
 
         self.current_pos = (0, 0)
 
     def clearSerial(self):
         while self.ser.inWaiting() > 0:
             self.ser.readline()
+    
+    def get_curr_pos(self):
+        return self.current_pos
+
+    def zero(self):
+        goHome = "G28\n"
+        self.ser.write(goHome.encode())
+        self.logger.info("Please wait till home is set")
+
+        time.sleep(3)
+        self.clearSerial()
+
+        self.waitForResponse()
+        self.logger.info("Home is set")
+        
 
     def waitForResponse(self):
         getLoc = "M114\n"
         self.ser.write(getLoc.encode())
         self.logger.debug(f"Waiting for response")
+        gotResponse = False
 
-        while self.ser.inWaiting() > 0:
-            out = self.ser.readline()
-            if out != '':
-                self.logger.debug(out.decode())
-                if "Count" in out.decode():
-                    # position = out.decode.split(' ')[1:]
-                    # Get the first and third positions since x and z are what we care about
-                    # self.current_pos = (int(position[0][1:]), int(position[2][1:]))
-                    break
+        while not gotResponse:
+            while self.ser.inWaiting() > 0:
+                out = self.ser.readline()
+                if out != '':
+                    if "busy" in out.decode():
+                        continue
+                    self.logger.debug(f"Response: {out.decode()}")
+                    if "Count" in out.decode():
+                        gotResponse = True
+                        position = out.decode().split(' ')
+                        # Get the first and third positions since x and z are what we care about
+                        self.current_pos = (float(position[0][2:]), float(position[2][2:]))
+                        self.logger.debug(f"At current position {self.current_pos}")
+                        break
         
 
     def send_gcode(self, gcode):
         gcode = gcode + "\n"
-        self.logger.debug(f"Sending Command: {gcode}")
+        self.logger.info(f"Sending Command: {gcode}")
         self.ser.write(gcode.encode())
 
     def go_to_position(self, x, y):
