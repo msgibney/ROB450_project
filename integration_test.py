@@ -25,10 +25,8 @@ def grid_to_world(
     # cell_size_y = world_size_y / grid_size_y
     # x = ((col + 0.5) * cell_size_x) * 1000
     # y = ((row + 0.5) * cell_size_y) * 1000
-    x = col 
+    x = col
     y = row
-    y += 30
-    x += 25
     return (x, y)
 
 
@@ -53,6 +51,11 @@ grid[-1, :] = 1
 grid[:, 0] = 1
 grid[:, -1] = 1
 
+start_grid = (30, 30)
+goal_grid = (0, 0)
+
+my_gantry.go_to_position(start_grid[0], start_grid[1])
+
 try:
     astar = plan.AStar(grid)
 
@@ -62,22 +65,28 @@ try:
     bots = util.get_coordinates()
     logger.info(f"Bots: {bots}")
 
-    goal_grid = bots[2]
 
-    start_grid = (20, 30)
+    for i in bots:
+        goal_grid = i
 
-    goal_grid = (int(goal_grid[1]), int(goal_grid[0]))
+        goal_grid = (int(goal_grid[1]), int(goal_grid[0]))
 
-    logger.info(f"Goal: {goal_grid}")
+        logger.info(f"Goal: {goal_grid}")
+    
+        start_grid = my_gantry.get_curr_pos()
+        
+        start_grid = (int(start_grid[1]), int(start_grid[0]))
+        
+        print(start_grid, goal_grid)
 
-    path = astar.find_path(start_grid, goal_grid)
+        path = astar.find_path(start_grid, goal_grid)
 
-    logger.debug(f"Path: {path}")
+        logger.debug(f"Path: {path}")
 
-    for waypoint in path:
-        point = grid_to_world(waypoint[1], waypoint[0])
+        for waypoint in path:
+            point = grid_to_world(waypoint[1], waypoint[0])
 
-        my_gantry.go_to_position(point[0], point[1])
+            my_gantry.go_to_position(point[0], point[1])
 
     done = True
 except Exception as e:

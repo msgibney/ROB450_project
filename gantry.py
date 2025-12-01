@@ -1,6 +1,9 @@
 import time
 from serial import Serial
 from util import get_logger
+import threading
+
+CONFIG = 9
 
 class Gantry:
     def __init__(self):
@@ -8,12 +11,23 @@ class Gantry:
             port='/dev/ttyUSB0',
             baudrate=115200,
         )
+        self.mag = Serial(
+            port='/dev/ttyACM0',
+            baudrate=115200,
+        )
         self.logger = get_logger()
         while not self.ser.isOpen():
+            time.sleep(1)
+        while not self.mag.isOpen():
             time.sleep(1)
 
         time.sleep(3) # Give the printer a chance to get ready to receive messages
         self.clearSerial()
+        for i in range(1, 10):
+            self.activate_mag(i, True, 255)
+        self.read_mag_thread = threading.Thread(target=self.read_mag)
+        self.read_mag_thread.daemon = True
+        self.read_mag_thread.start()
 
         self.logger.info('Initializing gantry system.')
         XMax = 1000
@@ -24,6 +38,16 @@ class Gantry:
         self.zero()
 
         self.current_pos = (0, 0)
+    
+    def activate_mag(self, magnet, attraction, duty):
+        msg = bytearray([CONFIG, magnet, 0 if attraction else 1, duty, 255])
+        self.logger.debug(msg.hex(' '))
+        self.mag.write(msg)
+    
+    def read_mag(self):
+        while True:
+            while self.mag.inWaiting() > 0:
+                self.logger.debug(self.mag.readline())
 
     def clearSerial(self):
         while self.ser.inWaiting() > 0:
@@ -59,20 +83,21 @@ class Gantry:
                     self.logger.debug(f"Response: {out.decode()}")
                     if "Count" in out.decode():
                         gotResponse = True
-                        position = out.decode().split(' ')
-                        # Get the first and third positions since x and z are what we care about
-                        self.current_pos = (float(position[0][2:]), float(position[2][2:]))
-                        self.logger.debug(f"At current position {self.current_pos}")
+                        # position = out.decode().split(' ')
+                        # # Get the first and third positions since x and z are what we care about
+                        # self.current_pos = (float(position[0][2:]), float(position[2][2:]))
+                        # self.logger.debug(f"At current position {self.current_pos}")
                         break
         
 
     def send_gcode(self, gcode):
         gcode = gcode + "\n"
-        self.logger.info(f"Sending Command: {gcode}")
+        self.logger.debug(f"Sending Command: {gcode}")
         self.ser.write(gcode.encode())
 
     def go_to_position(self, x, y):
         gcode = f"G00 X{x} Z{y}"
+        self.current_pos = (float(y), float(x))
         self.send_gcode(gcode)
         self.waitForResponse()
 
