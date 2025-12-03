@@ -8,7 +8,7 @@ CONFIG = 9
 class Gantry:
     def __init__(self):
         self.ser = Serial(
-            port='/dev/ttyUSB0',
+            port='/dev/ttyUSB1',
             baudrate=115200,
         )
         self.mag = Serial(

@@ -1,5 +1,6 @@
 import path_planning as plan
 import numpy as np
+import math
 from serial import Serial
 import logging
 import util
@@ -25,8 +26,8 @@ def grid_to_world(
     # cell_size_y = world_size_y / grid_size_y
     # x = ((col + 0.5) * cell_size_x) * 1000
     # y = ((row + 0.5) * cell_size_y) * 1000
-    x = col
-    y = row
+    x = col + 30 
+    y = row - 15
     return (x, y)
 
 
@@ -57,38 +58,44 @@ goal_grid = (0, 0)
 my_gantry.go_to_position(start_grid[0], start_grid[1])
 
 try:
-    astar = plan.AStar(grid)
+    while True:
+        astar = plan.AStar(grid)
 
-    while util.get_coordinates() == []:
-        pass
+        while util.get_coordinates() == []:
+            pass
 
-    bots = util.get_coordinates()
-    logger.info(f"Bots: {bots}")
+        bots = util.get_coordinates()
+        logger.info(f"Bots: {bots}")
 
 
-    for i in bots:
-        goal_grid = i
+        for i in bots:
+            goal_grid = i
 
-        goal_grid = (int(goal_grid[1]), int(goal_grid[0]))
+            goal_grid = (int(goal_grid[1]), int(goal_grid[0]))
 
-        logger.info(f"Goal: {goal_grid}")
-    
-        start_grid = my_gantry.get_curr_pos()
+            start_grid = my_gantry.get_curr_pos()
+            start_grid = (int(start_grid[1]), int(start_grid[0]))
+
+            x_dist = start_grid[0] - goal_grid[0]
+            y_dist = start_grid[1] - goal_grid[1]
+            distance = math.sqrt(x_dist*x_dist + y_dist*y_dist)
+            if distance < 5:
+                continue
+
+            logger.info(f"Goal: {goal_grid}")
         
-        start_grid = (int(start_grid[1]), int(start_grid[0]))
-        
-        logger.info(f"start grid: {start_grid}, goal grid: {goal_grid}")
+            logger.info(f"start grid: {start_grid}, goal grid: {goal_grid}")
 
-        path = astar.find_path(start_grid, goal_grid)
+            path = astar.find_path(start_grid, goal_grid)
 
-        logger.debug(f"Path: {path}")
+            logger.debug(f"Path: {path}")
 
-        for waypoint in path:
-            point = grid_to_world(waypoint[1], waypoint[0])
+            for waypoint in path:
+                point = grid_to_world(waypoint[1], waypoint[0])
 
-            my_gantry.go_to_position(point[0], point[1])
+                my_gantry.go_to_position(point[0], point[1])
 
-    done = True
+        done = True
 except Exception as e:
     done = True
     logger.info(f"Bad things happened: {e}")

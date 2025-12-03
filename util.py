@@ -21,12 +21,17 @@ COORDINATES = []
 coordinate_lock = threading.Lock()
 WALLS = []
 
+gantry_loc = [0, 0]
 startY = 80
 endY = 1000
 startX = 100
 endX = 1800
 x_len = endX - startX
 y_len = endY - startY
+
+def set_gantry(x, y):
+    gantry_loc[0] = grid_to_camera(0.864*x+53.77, y)[0]
+    gantry_loc[1] = grid_to_camera(x+30,0.848*y-8.928)[1]
 
 def get_logger():
     return logger
@@ -51,7 +56,7 @@ def camera_to_grid(cX, cY):
     return [(x_len-cX)*400/(x_len),(y_len - cY)*200/(y_len)]
 
 def grid_to_camera(cX, cY):
-    return [cX*x_len/(400) + x_len,cY*y_len/(200) + y_len]
+    return [x_len - (cX*x_len/(400)),y_len - (cY*y_len/(200))]
     
 def locate_bots():
     logger.info("initializing camera")
@@ -149,10 +154,15 @@ def calibrate_visuals():
             continue
         
         frame = frame[startY:endY, startX:endX]
-        origin = grid_to_camera(30, 30)
+        origin = grid_to_camera(60, 30)
         corner = grid_to_camera(370, 170)
-        cv2.circle(frame,(origin[0],origin[1]), 20, (0,0,255), -1)
-        cv2.circle(frame,(corner[0],corner[1]), 20, (0,0,255), -1)
+        
+        # print(origin)
+        # print(corner)
+        cv2.circle(frame,(int(origin[0]),int(origin[1])), 20, (0,0,255), 2)
+        cv2.circle(frame,(int(corner[0]),int(corner[1])), 20, (0,0,255), 2)
+        cv2.circle(frame, (int(gantry_loc[0]), int(gantry_loc[1])), 20, (0, 0, 255), 2)
+        print((int(gantry_loc[0]), int(gantry_loc[1])))
         cv2.imshow("video2", cv2.resize(frame, (1536, 864)))
         # cv2.imshow("video", thresh)
         # cv2.imshow("video2", frame)

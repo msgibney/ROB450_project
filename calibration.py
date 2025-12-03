@@ -18,6 +18,8 @@ gamepad = Gamepad()
 my_gantry = gantry.Gantry()
 
 
+# my_gantry.go_to_position(230, 400)
+
 myinput=1
 xPos = 0
 yPos = 0
@@ -37,4 +39,5 @@ while True:
         yPos = 0
 
     my_gantry.go_to_position(xPos, yPos)
+    util.set_gantry(my_gantry.current_pos[0], my_gantry.current_pos[1])
     util.logger.info(f"x: {xPos}, y: {yPos}")
