@@ -77,7 +77,7 @@ try:
         
         start_grid = (int(start_grid[1]), int(start_grid[0]))
         
-        print(start_grid, goal_grid)
+        logger.info(f"start grid: {start_grid}, goal grid: {goal_grid}")
 
         path = astar.find_path(start_grid, goal_grid)
 

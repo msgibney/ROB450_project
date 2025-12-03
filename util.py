@@ -6,6 +6,8 @@ import numpy as np
 from PIL import Image
 import threading
 
+CAMERA_ID = 4
+
 logger = logging.getLogger(__name__)
 
 logger.setLevel(logging.INFO)
@@ -47,10 +49,13 @@ def get_walls(frame):
 
 def camera_to_grid(cX, cY):
     return [(x_len-cX)*400/(x_len),(y_len - cY)*200/(y_len)]
+
+def grid_to_camera(cX, cY):
+    return [cX*x_len/(400) + x_len,cY*y_len/(200) + y_len]
     
 def locate_bots():
     logger.info("initializing camera")
-    cam = cv2.VideoCapture(4, cv2.CAP_ANY)
+    cam = cv2.VideoCapture(CAMERA_ID, cv2.CAP_ANY)
 
     # Get the default frame width and height
     frame_width = int(cam.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -122,3 +127,40 @@ def get_coordinates():
     coordinates = COORDINATES
     coordinate_lock.release()
     return coordinates
+
+def calibrate_visuals():
+    logger.info("initializing camera")
+    cam = cv2.VideoCapture(CAMERA_ID, cv2.CAP_ANY)
+
+    # Get the default frame width and height
+    frame_width = int(cam.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cam.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    frame_width = 1920
+    frame_height = 1080
+
+    cam.set(cv2.CAP_PROP_FRAME_WIDTH, frame_width)
+    cam.set(cv2.CAP_PROP_FRAME_HEIGHT, frame_height)
+
+    logger.info("Finished Initializing")
+    while True:
+        ret, frame = cam.read()
+
+        if frame is None:
+            continue
+        
+        frame = frame[startY:endY, startX:endX]
+        origin = grid_to_camera(30, 30)
+        corner = grid_to_camera(370, 170)
+        cv2.circle(frame,(origin[0],origin[1]), 20, (0,0,255), -1)
+        cv2.circle(frame,(corner[0],corner[1]), 20, (0,0,255), -1)
+        cv2.imshow("video2", cv2.resize(frame, (1536, 864)))
+        # cv2.imshow("video", thresh)
+        # cv2.imshow("video2", frame)
+        # Press 'q' to exit the loop
+        if cv2.waitKey(1) == ord('q'):
+            break
+
+    # Release the capture and writer objects
+    cam.release()
+    # out.release()
+    cv2.destroyAllWindows()
