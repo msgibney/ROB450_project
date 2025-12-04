@@ -96,6 +96,8 @@ class Gantry:
         self.ser.write(gcode.encode())
 
     def go_to_position(self, x, y):
+        x = min(x, 300)
+        y = min(y, 400)
         gcode = f"G00 X{x} Z{y}"
         self.current_pos = (float(y), float(x))
         self.send_gcode(gcode)

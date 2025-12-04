@@ -85,11 +85,11 @@ class Gamepad(object):
     def changed(self):
         return self.changed
 
-    def __del__(self):
-        #if not self._dev is None:
-        if self.is_initialized:
-            self.dev.releaseInterface()
-            self.dev.reset()
+    # def __del__(self):
+    #     #if not self._dev is None:
+    #     if self.is_initialized:
+    #         self.dev.releaseInterface()
+    #         self.dev.reset()
 
 # Unit test code
 if __name__ == '__main__':

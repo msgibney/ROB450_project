@@ -29,9 +29,25 @@ endX = 1800
 x_len = endX - startX
 y_len = endY - startY
 
+m_x = 0.864
+b_x = 53.77
+m_y = 0.848
+b_y = -8.928
+
+def grid_to_gantry(x, y):
+    gantry_x = (x - b_x) / m_x
+    gantry_y = (y - b_y) / m_y
+    return [gantry_x, gantry_y]  
+
+def gantry_to_grid(x, y):
+    grid_x = m_x * x + b_x
+    grid_y = m_y * y + b_y    
+    return [grid_x, grid_y]
+
 def set_gantry(x, y):
-    gantry_loc[0] = grid_to_camera(0.864*x+53.77, y)[0]
-    gantry_loc[1] = grid_to_camera(x+30,0.848*y-8.928)[1]
+    grid = gantry_to_grid(x, y)
+    gantry_loc[0] = grid_to_camera(grid[0], grid[1])[0]
+    gantry_loc[1] = grid_to_camera(grid[0], grid[1])[1]
 
 def get_logger():
     return logger
@@ -134,6 +150,7 @@ def get_coordinates():
     return coordinates
 
 def calibrate_visuals():
+    # Something that would be cool is some detection software that can automatically generate the slopes and intercepts to calibrate
     logger.info("initializing camera")
     cam = cv2.VideoCapture(CAMERA_ID, cv2.CAP_ANY)
 

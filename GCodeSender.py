@@ -16,8 +16,7 @@ gantry = Gantry()
 
 
 myinput=1
-xPos = 0
-yPos = 0
+
 while 1 :
     # get keyboard input
     if USING_GAMEPAD:
@@ -26,14 +25,10 @@ while 1 :
         ySpeed = gamepad.get_analogL_y()
         if xSpeed == 0 and ySpeed == 0:
             continue
+        xPos = gantry.get_curr_pos()[0]
+        yPos = gantry.get_curr_pos()[1]
         xPos += xSpeed * 4
         yPos += ySpeed * 1
-        
-        if xPos < 0:
-            xPos = 0
-        
-        if yPos < 0:
-            yPos = 0
 
         gcode = f"G00 X{xPos} Z{yPos}"
         gantry.go_to_position(xPos, yPos)
