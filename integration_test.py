@@ -4,6 +4,7 @@ import math
 from serial import Serial
 import logging
 import util
+from util import grid_to_gantry, gantry_to_grid
 import threading
 import sys
 import time
@@ -74,7 +75,8 @@ try:
             goal_grid = (int(goal_grid[1]), int(goal_grid[0]))
 
             start_grid = my_gantry.get_curr_pos()
-            start_grid = (int(start_grid[1]), int(start_grid[0]))
+            start_grid = gantry_to_grid(start_grid[0], start_grid[1])
+            start_grid = (int(start_grid[0]), int(start_grid[1]))
 
             x_dist = start_grid[0] - goal_grid[0]
             y_dist = start_grid[1] - goal_grid[1]
@@ -88,12 +90,15 @@ try:
 
             path = astar.find_path(start_grid, goal_grid)
 
-            logger.debug(f"Path: {path}")
+            logger.info(f"Path: {path}")
 
             for waypoint in path:
-                point = grid_to_world(waypoint[1], waypoint[0])
+                point = grid_to_gantry(waypoint[1], waypoint[0])
 
-                my_gantry.go_to_position(point[0], point[1])
+                my_gantry.go_to_position(point[1], point[0])
+                util.logger.info(f"gantry thoughts: {waypoint}")
+                util.set_gantry(point[0], point[1])
+
 
         done = True
 except Exception as e:

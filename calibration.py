@@ -9,15 +9,15 @@ import time
 import gantry
 from gamepad import Gamepad
 
-camera_thread = threading.Thread(target=util.calibrate_visuals)
-# camera_thread.daemon = True
-camera_thread.start()
-done = False
 
 gamepad = Gamepad()
 my_gantry = gantry.Gantry()
 
 
+camera_thread = threading.Thread(target=util.calibrate_visuals)
+# camera_thread.daemon = True
+camera_thread.start()
+done = False
 # my_gantry.go_to_position(230, 400)
 
 myinput=1
@@ -29,8 +29,8 @@ while True:
     ySpeed = gamepad.get_analogL_y()
     if xSpeed == 0 and ySpeed == 0:
         continue
-    xPos += xSpeed * 4
-    yPos += ySpeed * 1
+    xPos += xSpeed * 3
+    yPos += ySpeed * 4
     
     if xPos < 0:
         xPos = 0

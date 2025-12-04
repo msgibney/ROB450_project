@@ -8,7 +8,7 @@ CONFIG = 9
 class Gantry:
     def __init__(self):
         self.ser = Serial(
-            port='/dev/ttyUSB1',
+            port='/dev/ttyUSB0',
             baudrate=115200,
         )
         self.mag = Serial(
@@ -25,6 +25,8 @@ class Gantry:
         self.clearSerial()
         for i in range(1, 10):
             self.activate_mag(i, True, 255)
+        # self.activate_mag(9, True, 190)
+
         self.read_mag_thread = threading.Thread(target=self.read_mag)
         self.read_mag_thread.daemon = True
         self.read_mag_thread.start()
@@ -96,10 +98,10 @@ class Gantry:
         self.ser.write(gcode.encode())
 
     def go_to_position(self, x, y):
-        x = min(x, 300)
-        y = min(y, 400)
-        gcode = f"G00 X{x} Z{y}"
-        self.current_pos = (float(y), float(x))
+        x = min(x, 430)
+        y = min(y, 300)
+        gcode = f"G00 X{y} Z{x}"
+        self.current_pos = (float(x), float(y))
         self.send_gcode(gcode)
         self.waitForResponse()
 

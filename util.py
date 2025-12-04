@@ -29,10 +29,10 @@ endX = 1800
 x_len = endX - startX
 y_len = endY - startY
 
-m_x = 0.864
-b_x = 53.77
-m_y = 0.848
-b_y = -8.928
+m_x = 0.836
+b_x = 27.24
+m_y = 0.85
+b_y = -22.7
 
 def grid_to_gantry(x, y):
     gantry_x = (x - b_x) / m_x
@@ -63,8 +63,11 @@ def get_walls(frame):
     lower_blue = np.array([100, 100, 0])
     upper_blue = np.array([160, 255, 255])
     blue_mask = cv2.inRange(hsv_image, lower_blue, upper_blue)
-    img = Image.fromarray(blue_mask)
-    resized_img = img.resize((400, 200), Image.NEAREST)
+    # cv2.imshow("walls", cv2.resize(blue_mask, (1536, 864)))
+
+    # img = Image.fromarray(blue_mask)
+    resized_img = cv2.resize(blue_mask, (400, 200), interpolation=cv2.INTER_NEAREST)
+    cv2.imshow("walls", resized_img)
 
     return np.array(resized_img, dtype=np.int8)
 
@@ -130,6 +133,8 @@ def locate_bots():
         global COORDINATES
         COORDINATES = coordinates
         coordinate_lock.release()
+        cv2.circle(frame, (int(gantry_loc[0]), int(gantry_loc[1])), 20, (0, 0, 255), 2)
+
         cv2.drawContours(frame, cnts, -1, (0,0,255), 3)
         cv2.imshow("video2", cv2.resize(frame, (1536, 864)))
         # cv2.imshow("video", thresh)
@@ -154,22 +159,26 @@ def calibrate_visuals():
     logger.info("initializing camera")
     cam = cv2.VideoCapture(CAMERA_ID, cv2.CAP_ANY)
 
+
     # Get the default frame width and height
     frame_width = int(cam.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cam.get(cv2.CAP_PROP_FRAME_HEIGHT))
     frame_width = 1920
     frame_height = 1080
+    # fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    # out = cv2.VideoWriter('output.mp4', fourcc, 30.0, (frame_width, frame_height))
+
 
     cam.set(cv2.CAP_PROP_FRAME_WIDTH, frame_width)
     cam.set(cv2.CAP_PROP_FRAME_HEIGHT, frame_height)
 
     logger.info("Finished Initializing")
-    while True:
+    for i in range(300):
         ret, frame = cam.read()
 
         if frame is None:
             continue
-        
+        # out.write(frame)
         frame = frame[startY:endY, startX:endX]
         origin = grid_to_camera(60, 30)
         corner = grid_to_camera(370, 170)
@@ -179,7 +188,7 @@ def calibrate_visuals():
         cv2.circle(frame,(int(origin[0]),int(origin[1])), 20, (0,0,255), 2)
         cv2.circle(frame,(int(corner[0]),int(corner[1])), 20, (0,0,255), 2)
         cv2.circle(frame, (int(gantry_loc[0]), int(gantry_loc[1])), 20, (0, 0, 255), 2)
-        print((int(gantry_loc[0]), int(gantry_loc[1])))
+        # print((int(gantry_loc[0]), int(gantry_loc[1])))
         cv2.imshow("video2", cv2.resize(frame, (1536, 864)))
         # cv2.imshow("video", thresh)
         # cv2.imshow("video2", frame)
@@ -189,5 +198,5 @@ def calibrate_visuals():
 
     # Release the capture and writer objects
     cam.release()
-    # out.release()
+    out.release()
     cv2.destroyAllWindows()

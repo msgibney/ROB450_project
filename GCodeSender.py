@@ -25,8 +25,8 @@ while 1 :
         ySpeed = gamepad.get_analogL_y()
         if xSpeed == 0 and ySpeed == 0:
             continue
-        xPos = gantry.get_curr_pos()[0]
-        yPos = gantry.get_curr_pos()[1]
+        xPos = gantry.get_curr_pos()[1]
+        yPos = gantry.get_curr_pos()[0]
         xPos += xSpeed * 4
         yPos += ySpeed * 1
 
