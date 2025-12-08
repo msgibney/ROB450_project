@@ -16,7 +16,7 @@ class Node:
 
 
 class AStar:
-    def __init__(self, grid, proximity_weight=10.0, safety_radius=0.013, world_size=0.3048):
+    def __init__(self, grid, proximity_weight=10.0, safety_radius=0.006, world_size=0.3048):
         self.grid = np.array(grid, dtype=np.uint8)
         self.rows, self.cols = self.grid.shape
         self.nodes = {}

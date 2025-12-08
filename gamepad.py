@@ -80,7 +80,7 @@ class Gamepad(object):
         return -1 * self._applyJoystickTransformations(self._state[0])
 
     def get_analogL_y(self):
-        return self._applyJoystickTransformations(self._state[1])
+        return -1 * self._applyJoystickTransformations(self._state[1])
 
     def changed(self):
         return self.changed

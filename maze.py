@@ -81,5 +81,6 @@ try:
     while True:
         pass
 except KeyboardInterrupt:
+    util.TRAVERSING_MAZE = False
     my_gantry.go_to_position(0, 0)
     

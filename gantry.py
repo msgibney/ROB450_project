@@ -24,8 +24,8 @@ class Gantry:
         time.sleep(3) # Give the printer a chance to get ready to receive messages
         self.clearSerial()
         for i in range(1, 10):
-            self.activate_mag(i, True, 255)
-        # self.activate_mag(9, True, 190)
+            self.activate_mag(i, True, 0)
+        self.activate_mag(5, True, 225)
 
         self.read_mag_thread = threading.Thread(target=self.read_mag)
         self.read_mag_thread.daemon = True

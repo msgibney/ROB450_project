@@ -20,6 +20,7 @@ logger.addHandler(handler)
 COORDINATES = []
 coordinate_lock = threading.Lock()
 WALLS = []
+TRAVERSING_MAZE = True
 
 gantry_loc = [0, 0]
 startY = 80
@@ -29,10 +30,10 @@ endX = 1800
 x_len = endX - startX
 y_len = endY - startY
 
-m_x = 0.836
-b_x = 27.24
-m_y = 0.85
-b_y = -22.7
+m_x = 0.886
+b_x = 40.216
+m_y = 0.748
+b_y = -7.059
 
 def grid_to_gantry(x, y):
     gantry_x = (x - b_x) / m_x
@@ -91,13 +92,13 @@ def locate_bots():
     cam.set(cv2.CAP_PROP_FRAME_HEIGHT, frame_height)
 
     # Define the codec and create VideoWriter object
-    # fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    # out = cv2.VideoWriter('output.mp4', fourcc, 30.0, (frame_width, frame_height))
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter('maze.mp4', fourcc, 30.0, (x_len, y_len))
 
     logger.info("Finished Initializing")
     first_loop = True
     # for i in range(300):
-    while True:
+    while TRAVERSING_MAZE:
         ret, frame = cam.read()
 
         if frame is None:
@@ -133,9 +134,12 @@ def locate_bots():
         global COORDINATES
         COORDINATES = coordinates
         coordinate_lock.release()
+        cv2.drawContours(frame, cnts, -1, (0,0,255), 3)
+
+        out.write(frame)
+
         cv2.circle(frame, (int(gantry_loc[0]), int(gantry_loc[1])), 20, (0, 0, 255), 2)
 
-        cv2.drawContours(frame, cnts, -1, (0,0,255), 3)
         cv2.imshow("video2", cv2.resize(frame, (1536, 864)))
         # cv2.imshow("video", thresh)
         # cv2.imshow("video2", frame)
@@ -145,7 +149,7 @@ def locate_bots():
 
     # Release the capture and writer objects
     cam.release()
-    # out.release()
+    out.release()
     cv2.destroyAllWindows()
 
 def get_coordinates():
@@ -173,15 +177,15 @@ def calibrate_visuals():
     cam.set(cv2.CAP_PROP_FRAME_HEIGHT, frame_height)
 
     logger.info("Finished Initializing")
-    for i in range(300):
+    while True:
         ret, frame = cam.read()
 
         if frame is None:
             continue
         # out.write(frame)
         frame = frame[startY:endY, startX:endX]
-        origin = grid_to_camera(60, 30)
-        corner = grid_to_camera(370, 170)
+        origin = grid_to_camera(60, 170)
+        corner = grid_to_camera(370, 30)
         
         # print(origin)
         # print(corner)
@@ -198,5 +202,5 @@ def calibrate_visuals():
 
     # Release the capture and writer objects
     cam.release()
-    out.release()
+    # out.release()
     cv2.destroyAllWindows()
