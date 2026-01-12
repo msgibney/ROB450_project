@@ -9,6 +9,7 @@ import struct
 
 USB_VENDOR = 0x046d
 USB_PRODUCT = 0xc216
+BUTTONS_INDEX = 5
 default_state = (0, 20, 0, 0, 0, 0, 123, 251, 128, 0, 128, 0, 128, 0, 0, 0, 0, 0, 0, 0)
 
 class Gamepad(object):
@@ -34,7 +35,14 @@ class Gamepad(object):
 
         self.dev.set_configuration()
         cfg = self.dev.get_active_configuration()
+        for i, intf in enumerate(cfg):
+            print(f"Interface {i}:")
+            for ep in intf:
+                print(f"  Endpoint: {ep.bEndpointAddress}, dir={usb.util.endpoint_direction(ep.bEndpointAddress)}")
+
         intf = cfg[(0, 0)]
+
+        usb.util.claim_interface(self.dev, intf.bInterfaceNumber)
 
         # Find interrupt-IN endpoint automatically
         self.ep_in = [e for e in intf if usb.util.endpoint_direction(e.bEndpointAddress) ==
@@ -82,6 +90,16 @@ class Gamepad(object):
     def get_analogL_y(self):
         return -1 * self._applyJoystickTransformations(self._state[1])
 
+    def get_LB(self):
+        if self._state is None:
+            return False
+        return self._state[BUTTONS_INDEX] in (1, 3)
+
+    def get_RB(self):
+        if self._state is None:
+            return False
+        return self._state[BUTTONS_INDEX] in (2, 3)
+
     def changed(self):
         return self.changed
 
@@ -90,6 +108,47 @@ class Gamepad(object):
     #     if self.is_initialized:
     #         self.dev.releaseInterface()
     #         self.dev.reset()
+
+from inputs import get_gamepad, devices
+
+class Gamepad_bad:
+    def __init__(self):
+        print(devices.gamepads)
+        self.changed = False
+
+        self._state = {
+            'ABS_X': 0,
+            'ABS_Y': 0,
+            'ABS_RX': 0,
+            'ABS_RY': 0,
+        }
+
+    def _applyJoystickTransformations(self, value):
+        deadzone = 3000
+        if abs(value) < deadzone:
+            return 0.0
+        return value / 32768.0
+
+    def read_gamepad(self):
+        self.changed = False
+        events = get_gamepad()
+        for e in events:
+            if e.code in self._state:
+                self._state[e.code] = e.state
+                self.changed = True
+
+    def get_analogL_x(self):
+        return self._applyJoystickTransformations(self._state['ABS_X'])
+
+    def get_analogL_y(self):
+        return -self._applyJoystickTransformations(self._state['ABS_Y'])
+
+    def get_analogR_x(self):
+        return self._applyJoystickTransformations(self._state['ABS_RX'])
+
+    def get_analogR_y(self):
+        return -self._applyJoystickTransformations(self._state['ABS_RY'])
+
 
 # Unit test code
 if __name__ == '__main__':

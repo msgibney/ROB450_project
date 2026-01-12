@@ -8,11 +8,11 @@ CONFIG = 9
 class Gantry:
     def __init__(self):
         self.ser = Serial(
-            port='/dev/ttyUSB0',
+            port='/dev/tty.usbserial-1110',   #port='/dev/ttyUSB0'
             baudrate=115200,
         )
         self.mag = Serial(
-            port='/dev/ttyACM0',
+            port='/dev/tty.usbmodem187107701',    #'/dev/ttyACM0'
             baudrate=115200,
         )
         self.logger = get_logger()
@@ -45,6 +45,23 @@ class Gantry:
         msg = bytearray([CONFIG, magnet, 0 if attraction else 1, duty, 255])
         self.logger.debug(msg.hex(' '))
         self.mag.write(msg)
+
+    #set magnets into a predefined pattern
+    #patterns: U
+    #orientations: 0 facing up, 1 facing right, 2 facing down, 3 facing left
+    def mag_pattern(self, pattern, orientation):
+        if(pattern == 'U'):
+            for i in range(1, 10):
+                self.activate_mag(i, True, 225)
+            if(orientation == 0):
+                self.activate_mag(2, True, 0)
+            elif(orientation == 1):
+                self.activate_mag(6, True, 0)
+            elif(orientation == 2):
+                self.activate_mag(8, True, 0)
+            else:
+                self.activate_mag(4, True, 0)
+            self.activate_mag(5, True, 0)
     
     def read_mag(self):
         while True:

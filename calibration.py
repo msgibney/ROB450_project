@@ -23,10 +23,31 @@ done = False
 myinput=1
 xPos = 0
 yPos = 0
+
+my_gantry.mag_pattern('U', 1)
+
+ori = 0
+
 while True:
     gamepad.read_gamepad()
     xSpeed = gamepad.get_analogL_x()
     ySpeed = gamepad.get_analogL_y()
+    lb_pressed = gamepad.get_LB()
+    rb_pressed = gamepad.get_RB()
+
+    if(rb_pressed):
+        ori += 1
+        if(ori >= 4):
+            ori = 0
+        print('rb_pressed', ori)
+        my_gantry.mag_pattern('U', ori)
+    elif(lb_pressed):
+        ori -= 1
+        if(ori <= -1):
+            ori = 3
+        print('lb_pressed', ori)
+        my_gantry.mag_pattern('U', ori)
+    
     if xSpeed == 0 and ySpeed == 0:
         continue
     xPos += xSpeed * 3

@@ -58,7 +58,7 @@ grid = [row[::-1] for row in grid]
 
 np.set_printoptions(threshold=sys.maxsize)
 
-print(grid)
+#print(grid)
 
 astar = plan.AStar(grid)
 

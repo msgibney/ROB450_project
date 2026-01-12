@@ -6,7 +6,7 @@ import numpy as np
 from PIL import Image
 import threading
 
-CAMERA_ID = 4
+CAMERA_ID = 0
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ def get_walls(frame):
 
     # img = Image.fromarray(blue_mask)
     resized_img = cv2.resize(blue_mask, (400, 200), interpolation=cv2.INTER_NEAREST)
-    cv2.imshow("walls", resized_img)
+    #cv2.imshow("walls", resized_img)
 
     return np.array(resized_img, dtype=np.int8)
 
@@ -140,7 +140,7 @@ def locate_bots():
 
         cv2.circle(frame, (int(gantry_loc[0]), int(gantry_loc[1])), 20, (0, 0, 255), 2)
 
-        cv2.imshow("video2", cv2.resize(frame, (1536, 864)))
+        # cv2.imshow("video2", cv2.resize(frame, (1536, 864)))
         # cv2.imshow("video", thresh)
         # cv2.imshow("video2", frame)
         # Press 'q' to exit the loop
@@ -193,7 +193,7 @@ def calibrate_visuals():
         cv2.circle(frame,(int(corner[0]),int(corner[1])), 20, (0,0,255), 2)
         cv2.circle(frame, (int(gantry_loc[0]), int(gantry_loc[1])), 20, (0, 0, 255), 2)
         # print((int(gantry_loc[0]), int(gantry_loc[1])))
-        cv2.imshow("video2", cv2.resize(frame, (1536, 864)))
+        # cv2.imshow("video2", cv2.resize(frame, (1536, 864)))
         # cv2.imshow("video", thresh)
         # cv2.imshow("video2", frame)
         # Press 'q' to exit the loop
