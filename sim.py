@@ -10,6 +10,7 @@ import contextlib
 import scipy.ndimage as nd
 from scipy.spatial import KDTree
 from collections import deque
+import matplotlib.pyplot as plt
 
 grid_size_const = 100
 
@@ -35,64 +36,62 @@ def clamp(val, lo, hi):
     return max(lo, min(val, hi))
 
 
-def generate_thick_maze(grid_size=grid_size_const, path_width=3, seed=None):
-    """
-    Generate a maze with thicker paths but thin walls.
-    """
+def generate_thick_maze(grid_size=grid_size_const, path_width=3, seed=None, visualize=False):
     if seed is not None:
         random.seed(seed)
         np.random.seed(seed)
 
-    # Coarse grid
     coarse_size = grid_size // path_width
     if coarse_size % 2 == 0:
         coarse_size -= 1
 
-    coarse = np.ones((coarse_size, coarse_size), dtype=np.int8)
-    carve_maze(coarse)
+    # ---- STEP 0: solid walls (for visualization only) ----
+    coarse_solid = np.ones((coarse_size, coarse_size), dtype=np.int8)
 
-    # Optional: small random holes to break perfect maze
+    # ---- STEP 1: carve maze ----
+    coarse = coarse_solid.copy()
+    carve_maze(coarse)
+    coarse_carved = coarse.copy()
+
+    # ---- STEP 2: add holes ONLY ----
+    holes = np.zeros_like(coarse, dtype=np.int8)
+
     for _ in range((coarse_size * coarse_size) // 50):
-        r = random.randint(1, coarse_size-2)
-        c = random.randint(1, coarse_size-2)
+        r = random.randint(1, coarse_size - 2)
+        c = random.randint(1, coarse_size - 2)
         if coarse[r, c] == 1 and random.random() < 0.2:
             coarse[r, c] = 0
+            holes[r, c] = 1   # mark hole only
 
-    # Upscale to full resolution
-    full_map = np.kron(coarse, np.ones((path_width, path_width), dtype=np.int8))
+    coarse_with_holes = coarse.copy()
 
-    # --- Thin walls but thick paths ---
-    # Invert maze (1->wall, 0->path)
-    inverted = 1 - full_map
-    # Dilate paths by a small radius to widen corridors
-    widened = nd.binary_dilation(inverted, iterations=path_width//3)
-    # Flip back to original convention (1=wall, 0=free)
-    full_map = 1 - widened.astype(np.int8)
+    # ---- STEP 3: upscale (thin paths) ----
+    thin_paths = np.kron(coarse_with_holes,
+                         np.ones((path_width, path_width), dtype=np.int8))
 
-    h = full_map.shape[0]
-    w = full_map.shape[1]
+    # ---- STEP 4: widen paths ----
+    inverted = 1 - thin_paths
+    widened = nd.binary_dilation(inverted, iterations=path_width // 3)
+    wide_paths = 1 - widened.astype(np.int8)
 
-    full_map_fixed = np.ones((grid_size_const, grid_size_const), dtype=np.int8)
+    if visualize:
+        return {
+            "coarse_solid": coarse_solid,
+            "holes": holes,
+            "coarse_carved": coarse_carved,
+            "thin_paths": thin_paths,
+            "wide_paths": wide_paths
+        }
 
-    pad_h = (grid_size_const - h) // 2
-    pad_w = (grid_size_const - w) // 2
-    full_map_fixed[pad_h:pad_h + h, pad_w:pad_w + w] = full_map
-    full_map = full_map_fixed
+    return wide_paths
 
-    full_map[0, :] = 1
-    full_map[-1, :] = 1
-    full_map[:, 0] = 1
-    full_map[:, -1] = 1
 
-    # Clamp edges
-    full_map[0, :] = full_map[-1, :] = 1
-    full_map[:, 0] = full_map[:, -1] = 1
+def plot_maze(ax, maze, title, vmin=0, vmax=1, cmap="gray_r"):
+    ax.imshow(maze, cmap=cmap, vmin=vmin, vmax=vmax)
+    ax.set_title(title)
+    ax.set_xticks([])
+    ax.set_yticks([])
 
-    # Start/goal in open cells
-    start_cell = np.argwhere(full_map == 0)[0]
-    goal_cell = np.argwhere(full_map == 0)[-1]
-
-    return full_map, start_cell, goal_cell
 
 def carve_maze(m):
     rows, cols = m.shape
@@ -165,14 +164,78 @@ def find_nearest_free_cell(start, grid):
         if 0 <= r < rows and 0 <= c < cols:
             if grid[r, c] == 0:
                 return (r, c)
-            # Explore 4-neighbors
             for dr, dc in [(1,0), (-1,0), (0,1), (0,-1)]:
                 queue.append((r+dr, c+dc))
-    return start  # fallback
+    return start
+
+def cluster_near_ee(ee_pos, cluster, threshold):
+    for link_id in cluster:
+        link_pos = p.getBasePositionAndOrientation(link_id)[0]
+        if np.linalg.norm(np.array(link_pos[:2]) - ee_pos[:2]) > threshold:
+            return False
+    return True
 
 
-path_width = 5  # each open corridor will be about 10 cells thick
-map, start_cell, goal_cell = generate_thick_maze(grid_size_const, path_width, seed=75)
+path_width = 7  # each open corridor will be about 10 cells thick
+# map, start_cell, goal_cell = generate_thick_maze(grid_size_const, path_width, seed=75)
+
+stages = generate_thick_maze(
+    grid_size=100,
+    path_width=7,
+    seed=75,
+    visualize=True
+)
+
+fig, axs = plt.subplots(1, 3, figsize=(16, 4))
+
+
+plot_maze(
+    axs[0],
+    stages["coarse_solid"],
+    "Initial Grid\n(All Walls)",
+    vmin=1,
+    vmax=1,
+    cmap="gray"
+)
+
+
+plot_maze(
+    axs[1],
+    stages["coarse_carved"],
+    "Carved Maze\n(Thin Paths)"
+)
+
+
+plot_maze(
+    axs[2],
+    stages["wide_paths"],
+    "Final Maze\n(Wide Paths)"
+)
+
+plt.tight_layout()
+plt.show()
+
+
+
+# import re
+#
+# with open("array.txt", "r") as f:
+#     txt = f.read()
+#
+# # Extract everything that looks like a row: "[ ... ]"
+# rows = re.findall(r"\[([^\]]+)\]", txt)
+#
+# matrix = []
+# for row in rows:
+#     # extract all numbers in that row
+#     nums = re.findall(r"[-+]?\d*\.?\d+", row)
+#     nums = list(map(float, nums))
+#     matrix.append(nums)
+#
+# map = np.array(matrix, dtype=float)
+#
+# start_cell = (80, 27)
+# goal_cell = (117, 240)
 
 # Convert start/goal to world coordinates
 start_world = grid_to_world(start_cell[0], start_cell[1])
@@ -379,7 +442,7 @@ def spawn_floating_sphere(radius=0.003):
 
     # Dynamics properties
     p.changeDynamics(
-        link_id, -1,
+        link_id,
         lateralFriction=0.1,
         spinningFriction=0.05,
         rollingFriction=0.05,
@@ -505,15 +568,13 @@ links = [spawn_floating_sphere_in_empty_cell(map, radius=link_size / 2) for _ in
 limit = one_foot
 positions = [(0,0),(limit,0),(limit,limit),(0,limit)]
 
-def clamp(val, lo, hi):
-    return max(lo, min(val, hi))
 #
 ee_target_x = p.getJointState(gantry, 0)[0]
 ee_target_y = p.getJointState(gantry, 1)[0]
 ee_speed = 0.001
 
 with open(os.devnull, "w") as f, contextlib.redirect_stdout(f), contextlib.redirect_stderr(f):
-    video_id = p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "gantry_sim_x_maze_clusters_seed75.mp4")
+    video_id = p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "maze_clusters_faster_seed75.mp4")
 
 target_x = start_world[0]
 target_y = start_world[1]
@@ -560,6 +621,8 @@ goal_grid = world_to_grid(goal_world[0], goal_world[1])
 
 path = astar.find_path(start_grid, goal_grid)
 
+print(path)
+
 waypoint_grid = path[current_waypoint_idx]
 waypoint_world = np.array(grid_to_world(waypoint_grid[0], waypoint_grid[1]))
 
@@ -570,7 +633,7 @@ target_y = clamp(waypoint_world[1], 0, limit)
 p.setJointMotorControl2(gantry, 0, p.POSITION_CONTROL, targetPosition=target_x, force=100)
 p.setJointMotorControl2(gantry, 1, p.POSITION_CONTROL, targetPosition=target_y, force=100)
 
-magnet_threshold = 0.03
+magnet_threshold = 0.02
 goal_threshold = 0.005
 cluster_radius = 0.02
 ee_speed = 0.001
@@ -649,15 +712,36 @@ all_links = links.copy()
 #
 #     p.stepSimulation()
 #     time.sleep(1./240.)
+uncollected_links = all_links.copy()
 
+ee_state = p.getLinkState(gantry, 1)
+ee_pos = np.array(ee_state[0])
+
+clusters = cluster_links(uncollected_links, cluster_radius)
+target_cluster = closest_cluster(ee_pos, clusters, astar, map)
+
+prev_goal = [0, 0]
+prev_start = [0, 0]
+index = 0
+last_update = 0
 while not links_near_ee(p.getLinkState(gantry, 1)[0][:2], all_links, magnet_threshold):
     ee_state = p.getLinkState(gantry, 1)
     ee_pos = np.array(ee_state[0])
 
     pull_links_toward_ee(ee_pos, all_links)
 
-    clusters = cluster_links(all_links, cluster_radius)
-    target_cluster = closest_cluster(ee_pos, clusters, astar, map)
+    clusters = cluster_links(uncollected_links, cluster_radius)
+
+    if not clusters:
+        break
+
+    if cluster_near_ee(ee_pos, target_cluster, magnet_threshold):
+        for link in target_cluster:
+            if link in uncollected_links:
+                uncollected_links.remove(link)
+
+        target_cluster = closest_cluster(ee_pos, clusters, astar, map)
+        continue
 
     if target_cluster:
         centroid = np.clip(cluster_centroid(target_cluster), 0, 0.3048)
@@ -672,28 +756,41 @@ while not links_near_ee(p.getLinkState(gantry, 1)[0][:2], all_links, magnet_thre
         if map[goal[0], goal[1]] == 1:
             goal = find_nearest_free_cell(goal, map)
 
-        path = astar.find_path(start, goal)
+        if (goal[0] != prev_goal[0] or goal[1] != prev_goal[1]) or index >= len(path) - 3 or last_update >= 5:
+            path = astar.find_path(start, goal)
+            last_update = 0
+            index = 0
+        elif ee_grid[0] == next_waypoint[0] and ee_grid[1] == next_waypoint[1]:
+            index = index + 1
+        else:
+            last_update += 1
+
+        prev_goal = goal
 
         if path is None or len(path) == 1:
             next_waypoint = target_grid
+        elif len(path) > 2:
+            next_waypoint = path[2+index]
         elif len(path) > 1:
-            next_waypoint = path[2]
-        else:
             next_waypoint = path[1]
+        else:
+            next_waypoint = path[0]
 
         waypoint_world = np.array(grid_to_world(next_waypoint[0], next_waypoint[1]))
         target_x = clamp(waypoint_world[0], 0, limit)
         target_y = clamp(waypoint_world[1], 0, limit)
-    else:
-        target_x = ee_pos[0]
-        target_y = ee_pos[1]
 
-    p.setJointMotorControl2(gantry, 0, p.POSITION_CONTROL, targetPosition=target_x, force=100)
-    p.setJointMotorControl2(gantry, 1, p.POSITION_CONTROL, targetPosition=target_y, force=100)
+        p.setJointMotorControl2(gantry, 0, p.POSITION_CONTROL, targetPosition=target_x, force=100, maxVelocity=0.1)
+        p.setJointMotorControl2(gantry, 1, p.POSITION_CONTROL, targetPosition=target_y, force=100, maxVelocity=0.1)
 
-    p.stepSimulation()
-    time.sleep(1./240.)
-
+        p.stepSimulation()
+    # else:
+    #     target_x = ee_pos[0]
+    #     target_y = ee_pos[1]
+    # time.sleep(1./240.)
+index = 0
+last_update = 0
+prev_goal = [0, 0]
 while True:
     ee_state = p.getLinkState(gantry, 1)
     ee_pos = np.array(ee_state[0])
@@ -701,22 +798,34 @@ while True:
     pull_links_toward_ee(ee_pos, all_links)
 
     ee_grid = world_to_grid(ee_pos[0], ee_pos[1])
-    goal_grid_coord = world_to_grid(goal_world[0], goal_world[1])
+    goal = world_to_grid(goal_world[0], goal_world[1])
 
-    path = astar.find_path(ee_grid, goal_grid_coord)
+    if (goal[0] != prev_goal[0] or goal[1] != prev_goal[1]) or index >= len(path) - 3 or last_update >= 10:
+        path = astar.find_path(ee_grid, goal)
+        last_update = 0
+        index = 0
+    elif ee_grid[0] == next_waypoint[0] and ee_grid[1] == next_waypoint[1]:
+        index = index + 1
+    else:
+        last_update += 1
+
+    prev_goal = goal
+
     if path is None or len(path) == 1:
         next_waypoint = target_grid
+    elif len(path) > 2:
+        next_waypoint = path[2 + index]
     elif len(path) > 1:
-        next_waypoint = path[2]
-    else:
         next_waypoint = path[1]
+    else:
+        next_waypoint = path[0]
 
     waypoint_world = np.array(grid_to_world(next_waypoint[0], next_waypoint[1]))
     target_x = clamp(waypoint_world[0], 0, limit)
     target_y = clamp(waypoint_world[1], 0, limit)
 
-    p.setJointMotorControl2(gantry, 0, p.POSITION_CONTROL, targetPosition=target_x, force=100)
-    p.setJointMotorControl2(gantry, 1, p.POSITION_CONTROL, targetPosition=target_y, force=100)
+    p.setJointMotorControl2(gantry, 0, p.POSITION_CONTROL, targetPosition=target_x, force=100, maxVelocity=0.5)
+    p.setJointMotorControl2(gantry, 1, p.POSITION_CONTROL, targetPosition=target_y, force=100, maxVelocity=0.5)
 
     distance_to_goal = np.linalg.norm(ee_pos[:2] - goal_world[:2])
     if distance_to_goal < goal_threshold:
