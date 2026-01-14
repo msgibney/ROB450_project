@@ -9,7 +9,8 @@ import struct
 
 USB_VENDOR = 0x046d
 USB_PRODUCT = 0xc216
-BUTTONS_INDEX = 5
+BUMPERS_INDEX = 5
+BUTTONS_INDEX = 4
 default_state = (0, 20, 0, 0, 0, 0, 123, 251, 128, 0, 128, 0, 128, 0, 0, 0, 0, 0, 0, 0)
 
 class Gamepad(object):
@@ -93,12 +94,22 @@ class Gamepad(object):
     def get_LB(self):
         if self._state is None:
             return False
-        return self._state[BUTTONS_INDEX] in (1, 3)
+        return self._state[BUMPERS_INDEX] in (1, 3)
 
     def get_RB(self):
         if self._state is None:
             return False
-        return self._state[BUTTONS_INDEX] in (2, 3)
+        return self._state[BUMPERS_INDEX] in (2, 3)
+    
+    def get_A(self):
+        if self._state is None:
+            return False
+        return bool(self._state[BUTTONS_INDEX] & (1 << 5))
+
+    def get_B(self):
+        if self._state is None:
+            return False
+        return bool(self._state[BUTTONS_INDEX] & (1 << 6))
 
     def changed(self):
         return self.changed

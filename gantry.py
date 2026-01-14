@@ -40,6 +40,83 @@ class Gantry:
         self.zero()
 
         self.current_pos = (0, 0)
+
+        #patterns are named by shape, U is a U, X is an x or cross etc.
+        #orientations are numbered starting with the one that looks closest to the label
+        #i.e. U: 0 is facing up, X: 0 is an X etc.
+        #orientations then rotate clockwise from the starting position
+        #for patterns that dont rotate, i.e. vl and hl, they start either to the left or top depending on orientation
+        #the 'orientation' then shifts right or down until reaching the end then going back to the middle
+        #h_ is horizontal, v_ is vertical, r_ is rotated, m_ is mirrored
+        #so hl is horizontal line, mL is mirrored L
+        self.patterns = {
+            'U': {
+                0: [1, 0, 1, 1, 0, 1, 1, 1, 1],
+                1: [1, 1, 1, 1, 0, 0, 1, 1, 1],
+                2: [1, 1, 1, 1, 0, 1, 1, 0, 1],
+                3: [1, 1, 1, 0, 0, 1, 1, 1, 1],
+            },
+            'X': {
+                0: [1, 0, 1, 0, 1, 0, 1, 0, 1],
+                1: [0, 1, 0, 1, 1, 1, 0, 1, 0],
+                2: [1, 0, 1, 0, 1, 0, 1, 0, 1],
+                3: [0, 1, 0, 1, 1, 1, 0, 1, 0],
+            },
+            'T': {
+                0: [1, 1, 1, 0, 1, 0, 0, 1, 0],
+                1: [0, 0, 1, 1, 1, 1, 0, 0, 1],
+                2: [0, 1, 0, 0, 1, 0, 1, 1, 1],
+                3: [1, 0, 0, 1, 1, 1, 1, 0, 0],
+            },
+            'O': {
+                0: [1, 1, 1, 1, 0, 1, 1, 1, 1],
+                1: [1, 1, 1, 1, 0, 1, 1, 1, 1],
+                2: [1, 1, 1, 1, 0, 1, 1, 1, 1],
+                3: [1, 1, 1, 1, 0, 1, 1, 1, 1],
+            },
+            'l': {
+                0: [0, 1, 0, 0, 1, 0, 0, 1, 0],
+                1: [0, 0, 1, 0, 1, 0, 1, 0, 0],
+                2: [0, 0, 0, 1, 1, 1, 0, 0, 0],
+                3: [1, 0, 0, 0, 1, 0, 0, 0, 1],
+            },
+            'vl': {
+                0: [1, 0, 0, 1, 0, 0, 1, 0, 0],
+                1: [0, 1, 0, 0, 1, 0, 0, 1, 0],
+                2: [0, 0, 1, 0, 0, 1, 0, 0, 1],
+                3: [0, 1, 0, 0, 1, 0, 0, 1, 0],
+            },
+            'hl': {
+                0: [1, 1, 1, 0, 0, 0, 0, 0, 0],
+                1: [0, 0, 0, 1, 1, 1, 0, 0, 0],
+                2: [0, 0, 0, 0, 0, 0, 1, 1, 1],
+                3: [0, 0, 0, 1, 1, 1, 0, 0, 0],
+            },
+            'L': {
+                0: [1, 0, 0, 1, 0, 0, 1, 1, 0],
+                1: [1, 1, 1, 1, 0, 0, 0, 0, 0],
+                2: [0, 1, 1, 0, 0, 1, 0, 0, 1],
+                3: [0, 0, 0, 0, 0, 1, 1, 1, 1],
+            },
+            'mL': {
+                0: [0, 0, 1, 0, 0, 1, 0, 1, 1],
+                1: [0, 0, 0, 1, 0, 0, 1, 1, 1],
+                2: [1, 1, 0, 1, 0, 0, 1, 0, 0],
+                3: [1, 1, 1, 0, 0, 1, 0, 0, 0],
+            },
+            'J': {
+                0: [0, 0, 1, 1, 0, 1, 1, 1, 1],
+                1: [1, 1, 0, 1, 0, 0, 1, 1, 1],
+                2: [1, 1, 1, 1, 0, 1, 1, 0, 0],
+                3: [1, 1, 1, 0, 0, 1, 0, 1, 1],
+            },
+            'mJ': {
+                0: [1, 0, 0, 1, 0, 1, 1, 1, 1],
+                1: [1, 1, 1, 1, 0, 0, 1, 1, 0],
+                2: [1, 1, 1, 1, 0, 1, 0, 0, 1],
+                3: [0, 1, 1, 0, 0, 1, 1, 1, 1],
+            },
+        }
     
     def activate_mag(self, magnet, attraction, duty):
         msg = bytearray([CONFIG, magnet, 0 if attraction else 1, duty, 255])
@@ -47,21 +124,11 @@ class Gantry:
         self.mag.write(msg)
 
     #set magnets into a predefined pattern
-    #patterns: U
-    #orientations: 0 facing up, 1 facing right, 2 facing down, 3 facing left
     def mag_pattern(self, pattern, orientation):
-        if(pattern == 'U'):
-            for i in range(1, 10):
-                self.activate_mag(i, True, 225)
-            if(orientation == 0):
-                self.activate_mag(2, True, 0)
-            elif(orientation == 1):
-                self.activate_mag(6, True, 0)
-            elif(orientation == 2):
-                self.activate_mag(8, True, 0)
-            else:
-                self.activate_mag(4, True, 0)
-            self.activate_mag(5, True, 0)
+        if pattern in self.patterns:
+            states = self.patterns[pattern][orientation]
+            for i, duty in enumerate(states, start=1):
+                self.activate_mag(i, True, 225 if duty == 1 else 0)
     
     def read_mag(self):
         while True:
