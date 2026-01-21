@@ -8,8 +8,14 @@ import sys
 import time
 import gantry
 import cv2
+import signal
 from gamepad import Gamepad
 from queue import Empty
+
+def stop(signum, frame):
+    util.TRAVERSING_MAZE = False
+
+signal.signal(signal.SIGINT, stop)
 
 
 gamepad = Gamepad()
@@ -17,7 +23,7 @@ my_gantry = gantry.Gantry()
 
 
 camera_thread = threading.Thread(target=util.locate_bots)
-camera_thread.daemon = True
+camera_thread.daemon = False
 # camera_thread.daemon = True
 camera_thread.start()
 done = False
@@ -81,7 +87,7 @@ try:
             my_gantry.mag_pattern(patterns[pattern], ori)
         
         if xSpeed == 0 and ySpeed == 0:
-            continue
+            pass
         xPos += xSpeed * 3
         yPos += ySpeed * 4
         
@@ -95,6 +101,11 @@ try:
         util.set_gantry(my_gantry.current_pos[0], my_gantry.current_pos[1])
         util.logger.info(f"x: {xPos}, y: {yPos}")
 
-except KeyboardInterrupt:
-    util.TRAVERSING_MAZE = False
+finally:
+    util.frame_queue.put(None)
+    print("IN FINALLY")
+    camera_thread.join()
+    print("JOINED")
     my_gantry.go_to_position(0, 0)
+    cv2.destroyAllWindows()
+    

@@ -7,6 +7,8 @@ from PIL import Image
 import threading
 from queue import Queue
 
+
+
 CAMERA_ID = 0
 
 logger = logging.getLogger(__name__)
@@ -37,6 +39,7 @@ m_x = 0.886
 b_x = 40.216
 m_y = 0.748
 b_y = -7.059
+
 
 def grid_to_gantry(x, y):
     gantry_x = (x - b_x) / m_x
@@ -106,6 +109,9 @@ def locate_bots():
     while TRAVERSING_MAZE:
         ret, frame = cam.read()
 
+        if not TRAVERSING_MAZE:
+            break
+
         if not ret or frame is None:
             continue
         
@@ -114,7 +120,7 @@ def locate_bots():
         if out is None:
             h, w = frame.shape[:2]
             fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-            out = cv2.VideoWriter('pattern_mJ.avi', fourcc, 30.0, (crop_w, crop_h))
+            out = cv2.VideoWriter('pattern_test.avi', fourcc, 30.0, (crop_w, crop_h))
             if not out.isOpened():
                 print("VideoWriter failed to open")
                 break
@@ -175,7 +181,7 @@ def locate_bots():
     cam.release()
     if out:
         out.release()
-    cv2.destroyAllWindows()
+    
 
 def get_coordinates():
     coordinate_lock.acquire()
