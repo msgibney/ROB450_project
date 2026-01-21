@@ -5,6 +5,7 @@ import imutils
 import numpy as np
 from PIL import Image
 import threading
+from queue import Queue
 
 CAMERA_ID = 0
 
@@ -21,6 +22,8 @@ COORDINATES = []
 coordinate_lock = threading.Lock()
 WALLS = []
 TRAVERSING_MAZE = True
+CALIBRATING = True
+frame_queue = Queue(maxsize=1)
 
 gantry_loc = [0, 0]
 startY = 80
@@ -91,20 +94,31 @@ def locate_bots():
     cam.set(cv2.CAP_PROP_FRAME_WIDTH, frame_width)
     cam.set(cv2.CAP_PROP_FRAME_HEIGHT, frame_height)
 
-    # Define the codec and create VideoWriter object
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter('maze.mp4', fourcc, 30.0, (x_len, y_len))
+    crop_w = endX - startX
+    crop_h = endY - startY
 
     logger.info("Finished Initializing")
     first_loop = True
+    global TRAVERSING_MAZE
+
+    out = None
     # for i in range(300):
     while TRAVERSING_MAZE:
         ret, frame = cam.read()
 
-        if frame is None:
+        if not ret or frame is None:
             continue
         
         frame = frame[startY:endY, startX:endX]
+
+        if out is None:
+            h, w = frame.shape[:2]
+            fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+            out = cv2.VideoWriter('pattern_mJ.avi', fourcc, 30.0, (crop_w, crop_h))
+            if not out.isOpened():
+                print("VideoWriter failed to open")
+                break
+
         if first_loop:
             global WALLS
             WALLS = get_walls(frame)
@@ -140,16 +154,27 @@ def locate_bots():
 
         cv2.circle(frame, (int(gantry_loc[0]), int(gantry_loc[1])), 20, (0, 0, 255), 2)
 
+        try:
+            if frame_queue.full():
+                frame_queue.get_nowait()
+            frame_queue.put_nowait(frame)
+        except queue.Full:
+            try:
+                frame_queue.get_nowait()
+                frame_queue.put_nowait(frame)
+            except queue.Empty:
+                pass
+
         # cv2.imshow("video2", cv2.resize(frame, (1536, 864)))
         # cv2.imshow("video", thresh)
         # cv2.imshow("video2", frame)
         # Press 'q' to exit the loop
-        if cv2.waitKey(1) == ord('q'):
-            break
 
     # Release the capture and writer objects
+    logger.info("Releasing")
     cam.release()
-    out.release()
+    if out:
+        out.release()
     cv2.destroyAllWindows()
 
 def get_coordinates():

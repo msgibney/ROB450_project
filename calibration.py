@@ -7,6 +7,7 @@ import threading
 import sys
 import time
 import gantry
+
 from gamepad import Gamepad
 
 
@@ -15,6 +16,7 @@ my_gantry = gantry.Gantry()
 
 
 camera_thread = threading.Thread(target=util.calibrate_visuals)
+camera_thread.daemon = True
 # camera_thread.daemon = True
 camera_thread.start()
 done = False
@@ -39,6 +41,17 @@ while True:
     rb_pressed = gamepad.get_RB()
     a_pressed = gamepad.get_A()
     b_pressed = gamepad.get_B()
+
+    try:
+        frame = frame_queue.get(timeout=0.1)
+        cv2.imshow("live_feed", cv2.resize(frame, (1536, 864)))
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            util.TRAVERSING_MAZE = False
+    except queue.Empty:
+        continue
+    except Exception as e:
+        print(f"An error occurred in main thread: {e}")
+        break
 
     if(rb_pressed):
         ori += 1
@@ -80,3 +93,10 @@ while True:
     my_gantry.go_to_position(xPos, yPos)
     util.set_gantry(my_gantry.current_pos[0], my_gantry.current_pos[1])
     util.logger.info(f"x: {xPos}, y: {yPos}")
+
+try:
+    while True:
+        pass
+except KeyboardInterrupt:
+    util.TRAVERSING_MAZE = False
+    my_gantry.go_to_position(0, 0)
