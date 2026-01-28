@@ -51,7 +51,7 @@ class Gamepad(object):
         if self.ep_in is None:
             raise RuntimeError("Could not find interrupt IN endpoint")
 
-        self.changed = False
+        self._changed = False
         self._state = default_state
         self._old_state = default_state
         self.is_initialized = True
@@ -111,8 +111,18 @@ class Gamepad(object):
             return False
         return bool(self._state[BUTTONS_INDEX] & (1 << 6))
 
+    def get_Y(self):
+        if self._state is None:
+            return False
+        return bool(self._state[BUTTONS_INDEX] & (1 << 7))
+
+    def get_X(self):
+        if self._state is None:
+            return False
+        return bool(self._state[BUTTONS_INDEX] & (1 << 4))
+
     def changed(self):
-        return self.changed
+        return self._changed
 
     # def __del__(self):
     #     #if not self._dev is None:
@@ -141,7 +151,7 @@ class Gamepad_bad:
         return value / 32768.0
 
     def read_gamepad(self):
-        self.changed = False
+        self._changed = state is not None
         events = get_gamepad()
         for e in events:
             if e.code in self._state:

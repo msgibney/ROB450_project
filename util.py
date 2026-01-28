@@ -6,6 +6,15 @@ import numpy as np
 from PIL import Image
 import threading
 from queue import Queue
+import queue
+import json
+from datetime import datetime
+import faulthandler
+faulthandler.enable()
+
+timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+filename = f"coord_log_{timestamp}.json"
+vid_filename = f"video_log_{timestamp}.avi"
 
 
 
@@ -83,6 +92,11 @@ def camera_to_grid(cX, cY):
 
 def grid_to_camera(cX, cY):
     return [x_len - (cX*x_len/(400)),y_len - (cY*y_len/(200))]
+
+def coord_log(coords):
+    with open(filename, "a") as f:
+        json.dump(coords, f)
+        f.write("\n")
     
 def locate_bots():
     logger.info("initializing camera")
@@ -105,39 +119,55 @@ def locate_bots():
     global TRAVERSING_MAZE
 
     out = None
-    # for i in range(300):
+
     while TRAVERSING_MAZE:
+        # logger.info("loop start")
+
+        # logger.info("before cam.read()")
         ret, frame = cam.read()
+        # logger.info(f"after cam.read() ret={ret} frame={None if frame is None else 'OK'}")
 
         if not TRAVERSING_MAZE:
+            # logger.info("TRAVERSING_MAZE became False, breaking")
             break
 
         if not ret or frame is None:
+            # logger.warning("frame not returned, skipping this loop")
             continue
-        
+
+        # logger.info("cropping frame")
         frame = frame[startY:endY, startX:endX]
 
         if out is None:
+            # logger.info("initializing VideoWriter")
             h, w = frame.shape[:2]
             fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-            out = cv2.VideoWriter('pattern_test.avi', fourcc, 30.0, (crop_w, crop_h))
+            out = cv2.VideoWriter(vid_filename, fourcc, 30.0, (crop_w, crop_h))
             if not out.isOpened():
-                print("VideoWriter failed to open")
+                # logger.error("VideoWriter failed to open")
                 break
+            # logger.info("VideoWriter initialized")
 
         if first_loop:
+            # logger.info("first loop - computing walls")
             global WALLS
             WALLS = get_walls(frame)
             first_loop = False
+            # logger.info("walls computed")
 
+        # logger.info("converting to grayscale")
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
+        # logger.info("adaptiveThreshold")
         thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 23, 73)
+
+        # logger.info("findContours")
         cnts, hierarchy = cv2.findContours(thresh.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        # logger.info(f"found {len(cnts)} contours")
 
         coordinates = []
+        # logger.info("computing contour moments")
         for c in cnts:
-            # print(len(cnts))
             M = cv2.moments(c)
             if M["m00"] != 0:
                 cX = int(M["m10"] / M["m00"])
@@ -146,41 +176,45 @@ def locate_bots():
                 cX, cY = 0, 0
                 continue
             coordinates.append(camera_to_grid(cX, cY))
-            str_coor = [f"{num:.2f}" for num in coordinates[-1]]
-            cv2.putText(frame, f"centroid: {str_coor}", (cX - 25, cY - 25),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
-            
+        # logger.info("logging coordinates")
+        coord_log(coordinates)
+
+        # logger.info("locking coordinate_lock")
         coordinate_lock.acquire()
         global COORDINATES
         COORDINATES = coordinates
         coordinate_lock.release()
-        cv2.drawContours(frame, cnts, -1, (0,0,255), 3)
+        # logger.info("coordinate_lock released")
 
+        # logger.info("drawing contours")
+        cv2.drawContours(frame, cnts, -1, (0, 0, 255), 3)
+
+        # logger.info("writing frame to video")
         out.write(frame)
 
+        # logger.info("drawing gantry circle")
         cv2.circle(frame, (int(gantry_loc[0]), int(gantry_loc[1])), 20, (0, 0, 255), 2)
 
+        # logger.info("queueing frame")
         try:
-            if frame_queue.full():
-                frame_queue.get_nowait()
             frame_queue.put_nowait(frame)
+            # logger.info("frame queued")
         except queue.Full:
-            try:
-                frame_queue.get_nowait()
-                frame_queue.put_nowait(frame)
-            except queue.Empty:
-                pass
+            # logger.warning("queue full - dropping oldest frame")
+            frame_queue.get_nowait()
+            frame_queue.put_nowait(frame)
+            # logger.info("new frame queued after dropping old frame")
 
-        # cv2.imshow("video2", cv2.resize(frame, (1536, 864)))
-        # cv2.imshow("video", thresh)
-        # cv2.imshow("video2", frame)
-        # Press 'q' to exit the loop
+        # logger.info("loop end")
 
     # Release the capture and writer objects
     logger.info("Releasing")
     cam.release()
     if out:
         out.release()
+    logger.info("Released camera and writer")
+
     
 
 def get_coordinates():

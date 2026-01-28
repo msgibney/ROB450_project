@@ -50,6 +50,12 @@ class Gantry:
         #h_ is horizontal, v_ is vertical, r_ is rotated, m_ is mirrored
         #so hl is horizontal line, mL is mirrored L
         self.patterns = {
+            'B': {
+                0: [1, 1, 1, 1, 1, 1, 1, 1, 1],
+                1: [1, 1, 1, 1, 1, 1, 1, 1, 1],
+                2: [1, 1, 1, 1, 1, 1, 1, 1, 1],
+                3: [1, 1, 1, 1, 1, 1, 1, 1, 1],
+            },
             'U': {
                 0: [1, 0, 1, 1, 0, 1, 1, 1, 1],
                 1: [1, 1, 1, 1, 0, 0, 1, 1, 1],
@@ -124,11 +130,11 @@ class Gantry:
         self.mag.write(msg)
 
     #set magnets into a predefined pattern
-    def mag_pattern(self, pattern, orientation):
+    def mag_pattern(self, pattern, orientation, amplitude):
         if pattern in self.patterns:
             states = self.patterns[pattern][orientation]
             for i, duty in enumerate(states, start=1):
-                self.activate_mag(i, True, 225 if duty == 1 else 0)
+                self.activate_mag(i, True, int(255*duty*amplitude))
     
     def read_mag(self):
         while True:
