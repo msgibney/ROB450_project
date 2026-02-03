@@ -29,6 +29,10 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+calib = np.load("camera_calibration.npz")
+CAMERA_MATRIX = calib["camera_matrix"]
+DIST_COEFFS = calib["dist_coeffs"]
+
 COORDINATES = []
 coordinate_lock = threading.Lock()
 WALLS = []
@@ -44,21 +48,26 @@ endX = 1800
 x_len = endX - startX
 y_len = endY - startY
 
-m_x = 0.886
-b_x = 40.216
-m_y = 0.748
-b_y = -7.059
-
-
-def grid_to_gantry(x, y):
-    gantry_x = (x - b_x) / m_x
-    gantry_y = (y - b_y) / m_y
-    return [gantry_x, gantry_y]  
+# m_x = 0.880
+# b_x = 2.50
+# m_y = 0.757
+# b_y = -10.0
+a = 0.8637257028391621
+b = -0.032804896126967784 
+tx = 10.699618897967925
+c = 0.021941375266590568 
+d = 0.7979861334949228 
+ty = -20.55702736535999
 
 def gantry_to_grid(x, y):
-    grid_x = m_x * x + b_x
-    grid_y = m_y * y + b_y    
-    return [grid_x, grid_y]
+    gx = a*x + b*y + tx
+    gy = c*x + d*y + ty
+    return [gx, gy]
+
+def grid_to_gantry(gx, gy):
+    inv_mat = np.linalg.inv(np.array([[a, b], [c, d]]))
+    x, y = inv_mat @ (np.array([gx, gy]) - np.array([tx, ty]))
+    return [x, y]
 
 def set_gantry(x, y):
     grid = gantry_to_grid(x, y)
@@ -121,52 +130,39 @@ def locate_bots():
     out = None
 
     while TRAVERSING_MAZE:
-        # logger.info("loop start")
-
-        # logger.info("before cam.read()")
         ret, frame = cam.read()
-        # logger.info(f"after cam.read() ret={ret} frame={None if frame is None else 'OK'}")
 
         if not TRAVERSING_MAZE:
-            # logger.info("TRAVERSING_MAZE became False, breaking")
             break
 
         if not ret or frame is None:
-            # logger.warning("frame not returned, skipping this loop")
             continue
 
-        # logger.info("cropping frame")
+        frame = cv2.undistort(frame, CAMERA_MATRIX, DIST_COEFFS)
+
+        frame = cv2.flip(frame, -1)
+
         frame = frame[startY:endY, startX:endX]
 
         if out is None:
-            # logger.info("initializing VideoWriter")
             h, w = frame.shape[:2]
             fourcc = cv2.VideoWriter_fourcc(*'MJPG')
             out = cv2.VideoWriter(vid_filename, fourcc, 30.0, (crop_w, crop_h))
             if not out.isOpened():
-                # logger.error("VideoWriter failed to open")
                 break
-            # logger.info("VideoWriter initialized")
 
         if first_loop:
-            # logger.info("first loop - computing walls")
             global WALLS
             WALLS = get_walls(frame)
             first_loop = False
-            # logger.info("walls computed")
 
-        # logger.info("converting to grayscale")
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        # logger.info("adaptiveThreshold")
         thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 23, 73)
 
-        # logger.info("findContours")
         cnts, hierarchy = cv2.findContours(thresh.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-        # logger.info(f"found {len(cnts)} contours")
 
         coordinates = []
-        # logger.info("computing contour moments")
         for c in cnts:
             M = cv2.moments(c)
             if M["m00"] != 0:
@@ -177,38 +173,26 @@ def locate_bots():
                 continue
             coordinates.append(camera_to_grid(cX, cY))
 
-        # logger.info("logging coordinates")
         coord_log(coordinates)
 
-        # logger.info("locking coordinate_lock")
         coordinate_lock.acquire()
         global COORDINATES
         COORDINATES = coordinates
         coordinate_lock.release()
-        # logger.info("coordinate_lock released")
 
-        # logger.info("drawing contours")
         cv2.drawContours(frame, cnts, -1, (0, 0, 255), 3)
 
-        # logger.info("writing frame to video")
         out.write(frame)
 
-        # logger.info("drawing gantry circle")
         cv2.circle(frame, (int(gantry_loc[0]), int(gantry_loc[1])), 20, (0, 0, 255), 2)
 
-        # logger.info("queueing frame")
         try:
             frame_queue.put_nowait(frame)
-            # logger.info("frame queued")
         except queue.Full:
-            # logger.warning("queue full - dropping oldest frame")
             frame_queue.get_nowait()
             frame_queue.put_nowait(frame)
-            # logger.info("new frame queued after dropping old frame")
 
-        # logger.info("loop end")
 
-    # Release the capture and writer objects
     logger.info("Releasing")
     cam.release()
     if out:
@@ -241,29 +225,58 @@ def calibrate_visuals():
     cam.set(cv2.CAP_PROP_FRAME_WIDTH, frame_width)
     cam.set(cv2.CAP_PROP_FRAME_HEIGHT, frame_height)
 
+    global CALIBRATING
+
     logger.info("Finished Initializing")
-    while True:
+    while CALIBRATING:
         ret, frame = cam.read()
 
         if frame is None:
             continue
+
+        frame = cv2.undistort(frame, CAMERA_MATRIX, DIST_COEFFS)
+
+        frame = cv2.flip(frame, -1)
         # out.write(frame)
         frame = frame[startY:endY, startX:endX]
         origin = grid_to_camera(60, 170)
-        corner = grid_to_camera(370, 30)
+        corner = grid_to_camera(350, 30)
+        corner1 = grid_to_camera(350, 170)
+        corner2 = grid_to_camera(60, 30)
+        center = grid_to_camera(200, 100)
         
         # print(origin)
         # print(corner)
-        cv2.circle(frame,(int(origin[0]),int(origin[1])), 20, (0,0,255), 2)
-        cv2.circle(frame,(int(corner[0]),int(corner[1])), 20, (0,0,255), 2)
+        cv2.circle(frame, (int(origin[0]), int(origin[1])), 20, (0, 0, 255), 2)
+        cv2.circle(frame, (int(corner[0]), int(corner[1])), 20, (0, 0, 255), 2)
+        cv2.circle(frame, (int(corner1[0]), int(corner1[1])), 20, (0, 255, 0), 2)
+        cv2.circle(frame, (int(corner2[0]), int(corner2[1])), 20, (255, 0, 0), 2)
+        cv2.circle(frame, (int(center[0]), int(center[1])), 20, (0, 255, 255), 2)
         cv2.circle(frame, (int(gantry_loc[0]), int(gantry_loc[1])), 20, (0, 0, 255), 2)
+
+        extra_grid_points = [
+            (120, 50),
+            (280, 150),
+            (200, 30),
+            (100, 120),
+            (300, 80),
+            (150, 170)
+        ]
+
+        for gx, gy in extra_grid_points:
+            px, py = grid_to_camera(gx, gy)
+            cv2.circle(frame, (int(px), int(py)), 15, (255, 255, 0), 2)
         # print((int(gantry_loc[0]), int(gantry_loc[1])))
         # cv2.imshow("video2", cv2.resize(frame, (1536, 864)))
         # cv2.imshow("video", thresh)
         # cv2.imshow("video2", frame)
-        # Press 'q' to exit the loop
-        if cv2.waitKey(1) == ord('q'):
-            break
+        try:
+            frame_queue.put_nowait(frame)
+        except queue.Full:
+            frame_queue.get_nowait()
+            frame_queue.put_nowait(frame)
+        # if cv2.waitKey(1) == ord('q'):
+        #     break
 
     # Release the capture and writer objects
     cam.release()

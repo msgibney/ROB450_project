@@ -89,13 +89,13 @@ try:
             my_gantry.mag_pattern(patterns[pattern], ori, amplitude)
 
         if(x_pressed):
-            amplitude += 0.1
+            amplitude += 0.05
             if(amplitude >= 1):
                 amplitude = 1
             print('x_pressed', amplitude)
             my_gantry.mag_pattern(patterns[pattern], ori, amplitude)
         elif(y_pressed):
-            amplitude -= 0.1
+            amplitude -= 0.05
             if(amplitude <= 0):
                 amplitude = 0
             print('y_pressed', amplitude)
@@ -103,8 +103,8 @@ try:
         
         if xSpeed == 0 and ySpeed == 0:
             pass
-        xPos += xSpeed * 3
-        yPos += ySpeed * 4
+        xPos += xSpeed * 2
+        yPos += ySpeed * 3
         
         if xPos < 0:
             xPos = 0
