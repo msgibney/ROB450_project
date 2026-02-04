@@ -32,8 +32,10 @@ class Gantry:
         self.read_mag_thread.start()
 
         self.logger.info('Initializing gantry system.')
-        XMax = 1000
-        ZMax = 500
+        # XMax = 1000
+        # ZMax = 500
+        XMax = 10
+        ZMax = 5
         setMaximumSpeeds = f"M203 X{XMax} Z{ZMax}\n"
         self.ser.write(setMaximumSpeeds.encode())
 

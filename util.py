@@ -10,6 +10,8 @@ import queue
 import json
 from datetime import datetime
 import faulthandler
+import math
+import time
 faulthandler.enable()
 
 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -182,9 +184,9 @@ def locate_bots():
 
         cv2.drawContours(frame, cnts, -1, (0, 0, 255), 3)
 
-        out.write(frame)
+        cv2.circle(frame, (int(gantry_loc[0]), int(gantry_loc[1])), 20, (0, 0, 255), 2) 
 
-        cv2.circle(frame, (int(gantry_loc[0]), int(gantry_loc[1])), 20, (0, 0, 255), 2)
+        out.write(frame)
 
         try:
             frame_queue.put_nowait(frame)
@@ -282,3 +284,36 @@ def calibrate_visuals():
     cam.release()
     # out.release()
     cv2.destroyAllWindows()
+
+
+def collect_bots(my_gantry):
+    set_gantry(my_gantry.current_pos[0], my_gantry.current_pos[1])
+    gantry_grid = camera_to_grid(gantry_loc[0], gantry_loc[1])
+
+    min_dist = 10000
+    closest_bot = []
+
+    all_collected = False
+
+    while not all_collected:
+        all_collected = True
+        while get_coordinates() == []:
+            pass
+
+        bots = get_coordinates()
+
+        for bot in bots:
+            dist = math.dist(bot, gantry_grid)
+            if dist < 40:
+                continue
+            else:
+                if dist < min_dist:
+                    min_dist = dist
+                    closest_bot = bot
+                    all_collected = False
+
+        print(closest_bot, gantry_grid)
+        if not all_collected:
+            waypoint = grid_to_gantry(closest_bot[0], closest_bot[1])
+            time.sleep(0.75)
+            my_gantry.go_to_position(waypoint[0], waypoint[1])
