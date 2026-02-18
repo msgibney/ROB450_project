@@ -12,10 +12,12 @@ from datetime import datetime
 import faulthandler
 import math
 import time
+import path_planning
 faulthandler.enable()
 
 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 filename = f"coord_log_{timestamp}.json"
+filename2 = f"gant_log_{timestamp}.json"
 vid_filename = f"video_log_{timestamp}.avi"
 
 
@@ -108,6 +110,22 @@ def coord_log(coords):
     with open(filename, "a") as f:
         json.dump(coords, f)
         f.write("\n")
+
+def gant_log(coord):
+    with open(filename2, "a") as f:
+        json.dump(coord, f)
+        f.write("\n")
+
+def prompt_for_filenames():
+    global filename, filename2, vid_filename
+
+    user_input = input("Enter a base filename (or press Enter to keep default): ").strip()
+    if user_input:
+        filename = f"{user_input}_coord_log.json"
+        filename2 = f"{user_input}_gant_log.json"
+        vid_filename = f"{user_input}_video_log.avi"
+    else:
+        pass
     
 def locate_bots():
     logger.info("initializing camera")
@@ -116,8 +134,8 @@ def locate_bots():
     # Get the default frame width and height
     frame_width = int(cam.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cam.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    frame_width = 1920
-    frame_height = 1080
+    # frame_width = 2000
+    # frame_height = 1100
 
     cam.set(cv2.CAP_PROP_FRAME_WIDTH, frame_width)
     cam.set(cv2.CAP_PROP_FRAME_HEIGHT, frame_height)
@@ -176,6 +194,7 @@ def locate_bots():
             coordinates.append(camera_to_grid(cX, cY))
 
         coord_log(coordinates)
+        gant_log(gantry_loc)
 
         coordinate_lock.acquire()
         global COORDINATES
@@ -184,7 +203,7 @@ def locate_bots():
 
         cv2.drawContours(frame, cnts, -1, (0, 0, 255), 3)
 
-        cv2.circle(frame, (int(gantry_loc[0]), int(gantry_loc[1])), 20, (0, 0, 255), 2) 
+        # cv2.circle(frame, (int(gantry_loc[0]), int(gantry_loc[1])), 20, (0, 0, 255), 2) 
 
         out.write(frame)
 
@@ -286,34 +305,34 @@ def calibrate_visuals():
     cv2.destroyAllWindows()
 
 
-def collect_bots(my_gantry):
-    set_gantry(my_gantry.current_pos[0], my_gantry.current_pos[1])
+def collect_bots():
+    waypoint = (0, 0)
+    waypoint_grid = (0, 0)
+
+
     gantry_grid = camera_to_grid(gantry_loc[0], gantry_loc[1])
 
     min_dist = 10000
+
     closest_bot = []
 
-    all_collected = False
+    while get_coordinates() == []:
+        pass
 
-    while not all_collected:
-        all_collected = True
-        while get_coordinates() == []:
-            pass
+    bots = get_coordinates()
 
-        bots = get_coordinates()
+    for bot in bots:
+        dist = math.dist(bot, gantry_grid)
+        if dist < 50:
+            continue
+        else:
+            if dist < min_dist:
+                min_dist = dist
+                closest_bot = bot
 
-        for bot in bots:
-            dist = math.dist(bot, gantry_grid)
-            if dist < 40:
-                continue
-            else:
-                if dist < min_dist:
-                    min_dist = dist
-                    closest_bot = bot
-                    all_collected = False
+    waypoint_grid = closest_bot
+    return waypoint_grid
 
-        print(closest_bot, gantry_grid)
-        if not all_collected:
-            waypoint = grid_to_gantry(closest_bot[0], closest_bot[1])
-            time.sleep(0.75)
-            my_gantry.go_to_position(waypoint[0], waypoint[1])
+
+def drawSAM():
+    return [(275, 150), (300, 150), (300, 100), (275, 100), (275, 50), (300, 50), (250, 50), (225, 150), (200, 50), (175, 50), (150, 150), (125, 75), (100, 150), (75, 50)]

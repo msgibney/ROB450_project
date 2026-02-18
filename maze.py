@@ -56,14 +56,14 @@ grid = grid[::-1]
 
 grid = [row[::-1] for row in grid]
 
-np.set_printoptions(threshold=sys.maxsize)
+outgrid = grid
 
-#print(grid)
+np.set_printoptions(threshold=sys.maxsize)
 
 astar = plan.AStar(grid)
 
 start_grid = (80, 27)
-goal_grid = (117, 240)
+goal_grid = (50, 240)
 gant_start = grid_to_gantry(start_grid[1], start_grid[0])
 my_gantry.go_to_position(gant_start[0], gant_start[1])
 
@@ -72,6 +72,7 @@ path = astar.find_path(start_grid, goal_grid)
 
 for waypoint in path:
     print(waypoint)
+    outgrid[waypoint[0]][waypoint[1]] = 2
     point = grid_to_gantry(waypoint[1], waypoint[0])
 
     my_gantry.go_to_position(point[0], point[1])
@@ -82,5 +83,9 @@ try:
         pass
 except KeyboardInterrupt:
     util.TRAVERSING_MAZE = False
-    my_gantry.go_to_position(0, 0)
+    with open("array.txt", "w") as f:
+        for row in outgrid:
+            row_str = " ".join(str(int(x)) for x in row)
+            f.write(row_str + "\n")
+        my_gantry.go_to_position(0, 0)
     

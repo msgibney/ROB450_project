@@ -25,17 +25,17 @@ class Gantry:
         self.clearSerial()
         for i in range(1, 10):
             self.activate_mag(i, True, 0)
-        self.activate_mag(5, True, 225)
+        self.activate_mag(5, True, 255)
 
         self.read_mag_thread = threading.Thread(target=self.read_mag)
         self.read_mag_thread.daemon = True
         self.read_mag_thread.start()
 
         self.logger.info('Initializing gantry system.')
-        # XMax = 1000
-        # ZMax = 500
-        XMax = 10
-        ZMax = 5
+        XMax = 1000
+        ZMax = 500
+        # XMax = 10
+        # ZMax = 5
         setMaximumSpeeds = f"M203 X{XMax} Z{ZMax}\n"
         self.ser.write(setMaximumSpeeds.encode())
 
@@ -124,6 +124,12 @@ class Gantry:
                 2: [1, 1, 1, 1, 0, 1, 0, 0, 1],
                 3: [0, 1, 1, 0, 0, 1, 1, 1, 1],
             },
+            'd': {
+                0: [0, 0, 0, 0, 1, 0, 0, 0, 0],
+                1: [0, 0, 0, 0, 1, 0, 0, 0, 0],
+                2: [0, 0, 0, 0, 1, 0, 0, 0, 0],
+                3: [0, 0, 0, 0, 1, 0, 0, 0, 0],
+            },
         }
     
     def activate_mag(self, magnet, attraction, duty):
@@ -177,9 +183,9 @@ class Gantry:
                     self.logger.debug(f"Response: {out.decode()}")
                     if "Count" in out.decode():
                         gotResponse = True
-                        # position = out.decode().split(' ')
+                        position = out.decode().split(' ')
                         # # Get the first and third positions since x and z are what we care about
-                        # self.current_pos = (float(position[0][2:]), float(position[2][2:]))
+                        self.current_pos = (float(position[0][2:]), float(position[2][2:]))
                         # self.logger.debug(f"At current position {self.current_pos}")
                         break
         
@@ -193,11 +199,11 @@ class Gantry:
         x = min(x, 430)
         y = min(y, 300)
         gcode = f"G00 X{y} Z{x}"
-        self.current_pos = (float(x), float(y))
+        # self.current_pos = (float(x), float(y))
         self.send_gcode(gcode)
         self.waitForResponse()
 
     def go_to_position_at_speed(self, x, y, speed):
-        gcode = f"G01 X{x} Z{y} F{speed}"
+        gcode = f"G01 X{y} Z{x} F{speed}"
         self.send_gcode(gcode)
         self.waitForResponse()

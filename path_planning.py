@@ -1,8 +1,8 @@
 import heapq
 import numpy as np
 from scipy.ndimage import distance_transform_edt
-from scipy.ndimage import binary_dilation
-from scipy.ndimage import generate_binary_structure, iterate_structure
+
+
 class Node:
     def __init__(self, position):
         self.position = position
@@ -16,27 +16,23 @@ class Node:
 
 
 class AStar:
-    def __init__(self, grid, proximity_weight=10.0, safety_radius=0.006, world_size=0.3048):
+    def __init__(self, grid, proximity_weight=3.0, safety_radius=0.04, world_size=0.3048):
+        """
+        grid: 2D numpy array (0 = free, 1 = obstacle)
+        proximity_weight: how strongly to avoid walls (increase for more avoidance)
+        safety_radius: in meters; how much clearance around obstacles
+        world_size: physical size of the whole world (same scale as grid mapping)
+        """
         self.grid = np.array(grid, dtype=np.uint8)
         self.rows, self.cols = self.grid.shape
         self.nodes = {}
 
         # Compute distance (in grid cells) from nearest obstacle
-        self.distance_from_wall = distance_transform_edt(self.grid == 1)
+        self.distance_from_wall = distance_transform_edt(self.grid == 0)
 
         # Convert safety radius to equivalent number of grid cells
         self.cell_size = world_size / self.rows
         self.safety_cells = safety_radius / self.cell_size
-        
-                
-        structure = np.ones((3,3))
-        self.grid = binary_dilation(
-            self.grid,
-            structure=structure,
-            iterations=int(np.ceil(self.safety_cells))
-        ).astype(np.uint8)
-        
-        print(self.safety_cells)
 
         self.proximity_weight = proximity_weight
 
@@ -87,13 +83,8 @@ class AStar:
             closed_set.add(current.position)
 
             for neighbor_pos in self.get_neighbors(current.position):
-
-                if self.grid[neighbor_pos] != 0:
-                    continue
-
                 if neighbor_pos in closed_set:
                     continue
-
 
                 neighbor = self.get_node(neighbor_pos)
                 base_cost = 1.0
