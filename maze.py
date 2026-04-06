@@ -34,11 +34,18 @@ def grid_to_world(
     return (x, y)
 
 
-camera_thread = threading.Thread(target=util.locate_bots)
-# camera_thread.daemon = True
-camera_thread.start()
-
 my_gantry = gantry.Gantry()
+
+start_grid = (100, 50)
+goal_grid = (100, 375)
+gant_start = grid_to_gantry(start_grid[1], start_grid[0])
+my_gantry.go_to_position(gant_start[0], gant_start[1])
+
+util.prompt_for_filenames()
+
+camera_thread = threading.Thread(target=util.locate_bots)
+
+camera_thread.start()
 
 while util.get_finished_walls() is None:
     # print(util.get_finished_walls())
@@ -61,12 +68,6 @@ outgrid = grid
 np.set_printoptions(threshold=sys.maxsize)
 
 astar = plan.AStar(grid)
-
-start_grid = (80, 27)
-goal_grid = (50, 240)
-gant_start = grid_to_gantry(start_grid[1], start_grid[0])
-my_gantry.go_to_position(gant_start[0], gant_start[1])
-
 
 path = astar.find_path(start_grid, goal_grid)
 
