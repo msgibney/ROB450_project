@@ -34,14 +34,26 @@ def main():
         while True:
             if keyboard.is_pressed('w'):
                 ser.write(b'w')
-                time.sleep(0.1)  # small delay to avoid flooding
+                time.sleep(0.1)
             elif keyboard.is_pressed('s'):
                 ser.write(b's')
+                time.sleep(0.1)
+            elif keyboard.is_pressed('1'):
+                ser.write(b'1')
+                time.sleep(0.1)
+            elif keyboard.is_pressed('2'):
+                ser.write(b'2')
+                time.sleep(0.1)
+            elif keyboard.is_pressed('3'):
+                ser.write(b'3')
+                time.sleep(0.1)
+            elif keyboard.is_pressed('0'):
+                ser.write(b'0')
                 time.sleep(0.1)
             elif keyboard.is_pressed('q'):
                 print("Exiting...")
                 break
-            time.sleep(0.01)
+            time.sleep(0.1)
     except KeyboardInterrupt:
         print("\nExiting...")
     finally:
