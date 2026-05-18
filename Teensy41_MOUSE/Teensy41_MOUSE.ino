@@ -125,7 +125,7 @@ static inline bool tune_duty(uint8_t& duty_actual, uint8_t config, uint8_t virtu
   else                  {virtual_mag = 5;};
 
   // 255/5 = 51
-  duty_actual = duty_tuning[(virtual_mag-1)*51 + duty];
+  duty_actual = duty_tuning[(virtual_mag-1)*52 + duty];
   
   return status;
 }
