@@ -39,6 +39,8 @@ for x in np.arange(1.0, -0.01, -0.05):
     my_gantry.mag_pattern('d', 0, x)
     time.sleep(5)
 
+my_gantry.go_to_position_at_speed(200, 100, 500)
+
 my_gantry.go_to_position_at_speed(0, 0, 500)
 util.TRAVERSING_MAZE = False
 camera_thread.join()

@@ -12,14 +12,22 @@ import signal
 from gamepad import Gamepad
 from queue import Empty
 
-def stop(signum, frame):
-    util.TRAVERSING_MAZE = False
+# def stop(signum, frame):
+#     util.TRAVERSING_MAZE = False
 
-signal.signal(signal.SIGINT, stop)
+# signal.signal(signal.SIGINT, stop)
 
 gamepad = Gamepad()
 my_gantry = gantry.Gantry()
 
+my_gantry.mag_pattern('U', 0, 1)
+
+start_grid = (100, 50)
+gant_start = util.grid_to_gantry(start_grid[1], start_grid[0])
+my_gantry.go_to_position(gant_start[0], gant_start[1])
+util.set_gantry(gant_start[0], gant_start[1])
+
+util.prompt_for_filenames()
 
 camera_thread = threading.Thread(target=util.locate_bots)
 camera_thread.daemon = False
@@ -32,6 +40,10 @@ while util.get_finished_walls() is None:
     # print(util.get_finished_walls())
     pass
 grid = util.get_finished_walls()
+
+while util.get_finished_objects() is None:
+    pass
+objects = util.get_finished_objects()
 
 grid[0, :] = 1
 grid[-1, :] = 1
@@ -64,59 +76,70 @@ amplitude = 1
 
 all_collected = False
 
-start_grid = (10, 10)
-gant_start = util.grid_to_gantry(start_grid[0], start_grid[1])
-my_gantry.go_to_position(gant_start[0], gant_start[1])
-util.set_gantry(gant_start[0], gant_start[1])
+while not all_collected and util.TRAVERSING_MAZE:
+    try:
+        frame = util.frame_queue.get(timeout=0.05)
+        # cv2.imshow("live_feed", cv2.resize(frame, (1536, 864)))
+    except Empty:
+        frame = None
 
-try:
-    while not all_collected and util.TRAVERSING_MAZE:
-        try:
-            frame = util.frame_queue.get(timeout=0.05)
-            cv2.imshow("live_feed", cv2.resize(frame, (1536, 864)))
-        except Empty:
-            frame = None
-
-        if frame is not None:
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
-        start_grid = util.camera_to_grid(util.gantry_loc[0], util.gantry_loc[1])
-
-        start = (int(start_grid[1]), int(start_grid[0]))
-
-        goal_grid = util.collect_bots()
-
-        if(goal_grid == []):
-            all_collected = True
+    if frame is not None:
+        if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-        goal = (int(goal_grid[1]), int(goal_grid[0]))
+    start_grid = util.camera_to_grid(util.gantry_loc[0], util.gantry_loc[1])
 
-        # print(start, goal)
+    start = (int(start_grid[1]), int(start_grid[0]))
 
-        path = astar.find_path(start, goal)
+    goal_grid = util.collect_objects()
 
-        for waypoint in path:
-            point = util.grid_to_gantry(waypoint[1], waypoint[0])
+    # print(goal_grid)
 
-            my_gantry.go_to_position(point[0], point[1])
-            util.set_gantry(point[0], point[1])
+    if(goal_grid == []):
+        all_collected = True
+        break
 
-        time.sleep(0.25)
-        TRAVERSING_MAZE = False
-    
-    my_gantry.mag_pattern('d', 0, 1)
-    time.sleep(1.0)
-    waypoints = util.drawSAM()
-    for waypoint in waypoints:
-        point = util.grid_to_gantry(waypoint[0], waypoint[1])
-        my_gantry.go_to_position(point[0]-25, point[1])
-        util.set_gantry(point[0]-25, point[1])
+    goal = (int(goal_grid[1]), int(goal_grid[0]))
 
-finally:
-    # util.frame_queue.put(None)
-    camera_thread.join()
-    my_gantry.go_to_position(0, 0)
-    cv2.destroyAllWindows()
+    # print(start, goal)
+
+    path = astar.find_path(start, goal)
+
+    if len(path) >= 2:
+        direction = util.get_cardinal_direction(path[0], path[-1])
+        pattern = util.cardinal_direction_to_pattern(direction)
+
+        print(direction, pattern)
+
+    my_gantry.mag_pattern('U', pattern, 1)
+
+    for waypoint in path:
+        point = util.grid_to_gantry(waypoint[1], waypoint[0])
+
+        my_gantry.go_to_position_at_speed(point[0], point[1], 300)
+        util.set_gantry(point[0], point[1])
+
+    time.sleep(0.25)
+
+TRAVERSING_MAZE = False
+
+
+my_gantry.mag_pattern('d', 0, 1)
+time.sleep(1.0)
+waypoints = util.drawSAM()
+for waypoint in waypoints:
+    point = util.grid_to_gantry(waypoint[0], waypoint[1])
+    my_gantry.go_to_position(point[0]-25, point[1])
+    util.set_gantry(point[0]-25, point[1])
+
+try:
+    while True:
+        pass
+except KeyboardInterrupt:
+    util.TRAVERSING_MAZE = False
+    # with open("array.txt", "w") as f:
+    #     for row in outgrid:
+    #         row_str = " ".join(str(int(x)) for x in row)
+    #         f.write(row_str + "\n")
+    my_gantry.go_to_position_at_speed(0, 0, 500)
     

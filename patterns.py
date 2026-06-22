@@ -20,6 +20,13 @@ signal.signal(signal.SIGINT, stop)
 gamepad = Gamepad()
 my_gantry = gantry.Gantry()
 
+start_grid = (50, 100)
+gant_start = util.grid_to_gantry(start_grid[0], start_grid[1])
+my_gantry.go_to_position(gant_start[0], gant_start[1])
+
+my_gantry.mag_pattern('d', 2, 1)
+
+util.prompt_for_filenames()
 
 camera_thread = threading.Thread(target=util.locate_bots)
 camera_thread.daemon = False
@@ -29,15 +36,14 @@ done = False
 # my_gantry.go_to_position(230, 400)
 
 myinput=1
-xPos = 0
-yPos = 0
+xPos = 50
+yPos = 100
 
-my_gantry.mag_pattern('B', 0, 1)
 
-patterns = ['B', 'U', 'X', 'T', 'O', 'l', 'vl', 'hl', 'L', 'mL', 'J', 'mJ']
+patterns = ['B', 'U', 'X', 'T', 'O', 'l', 'vl', 'hl', 'L', 'mL', 'J', 'mJ', 'd', 'N', 'c']
 
-pattern = 0
-ori = 0
+pattern = 12
+ori = 2
 amplitude = 1
 
 try:
@@ -112,9 +118,11 @@ try:
         if yPos < 0:
             yPos = 0
 
-        my_gantry.go_to_position(xPos, yPos)
+        gant_go = util.grid_to_gantry(xPos, yPos)
+        my_gantry.go_to_position(gant_go[0], gant_go[1])
         util.set_gantry(my_gantry.current_pos[0], my_gantry.current_pos[1])
-        util.logger.info(f"x: {xPos}, y: {yPos}")
+        # util.logger.info(f"x: {xPos}, y: {yPos}")
+        # my_gantry.read_mag()
 
 finally:
     # util.frame_queue.put(None)

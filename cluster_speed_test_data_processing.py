@@ -101,10 +101,10 @@ for i, num_robots in enumerate(num_robots_range):
             if np.any(distances > radius*1.1):
                 count_outside += 1
 
-        results[i, j] = count_outside
-        print(f"Processed {video_name}: {count_outside} outside")
+        results[i, j] = num_robots - count_outside
+        print(f"Processed {video_name}: {num_robots - count_outside} outside")
 
         cap.release()
 
-np.save("microrobot_outside_counts.npy", results)
+np.save("microrobot_inside_counts.npy", results)
 print("Results saved to microrobot_outside_counts.npy")
